@@ -152,29 +152,61 @@ def solvesystem(Omega, Params: dict, rings_4d: dict, phi_0z_calc, Inductance: di
     
     Number = np.sum([value.size for value in rings_4d.values()])
 
-    FFT_M_circvecs = {}
-    i_vecs = {}
-    ifft_i_vecs = {}
-    MI_vecs = {}
-    print('Cirvecs forming')
-    for pos_str in tqdm(orientations):
+    if Params['Scattering'] == 'Mie_False':
+        FFT_M_circvecs = {}
+        i_vecs = {}
+        ifft_i_vecs = {}
+        MI_vecs = {}
+        print('Cirvecs forming once')
+        for pos_str in tqdm(orientations):
 
-        rings_str = rings_4d[pos_str]
-        FFT_M_circvecs[pos_str] = {}
-        i_vecs[pos_str] = {}
-        ifft_i_vecs[pos_str] = {}
-        MI_vecs[pos_str] = {}
-        for pos_col in orientations:
+            rings_str = rings_4d[pos_str]
+            FFT_M_circvecs[pos_str] = {}
+            i_vecs[pos_str] = {}
+            ifft_i_vecs[pos_str] = {}
+            MI_vecs[pos_str] = {}
+            for pos_col in orientations:
 
-            rings_col = rings_4d[pos_col]
-            M_circvecs = Circvec(Params, rings_str, rings_col, Omega[0], Inductance)#temporary not building circulant vectors on different frequencies
-            N_circ = np.array(rings_str.shape) + np.array(rings_col.shape) - 1
-            i_vecs[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
-            MI_vecs[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
-            FFT_M_circvecs[pos_str][pos_col] = scipy.fft.fftn(M_circvecs, axes=(0, 1, 2))
-            ifft_i_vecs[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
+                rings_col = rings_4d[pos_col]
+                M_circvecs = Circvec(Params, rings_str, rings_col, Omega[0], Inductance)
+                N_circ = np.array(rings_str.shape) + np.array(rings_col.shape) - 1
+                i_vecs[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
+                MI_vecs[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
+                FFT_M_circvecs[pos_str][pos_col] = scipy.fft.fftn(M_circvecs, axes=(0, 1, 2))
+                ifft_i_vecs[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
 
-    print('Cirvecs: Done')
+        print('Cirvecs: Done')
+
+    else:
+        FFT_M_circvecs_freq = []
+        i_vecs_freq = []
+        ifft_i_vecs_freq = []
+        MI_vecs_freq = []
+        print('Cirvecs forming for each frequency')
+        for omega in tqdm(Omega):
+            FFT_M_circvecs_omega = {}
+            i_vecs_omega = {}
+            ifft_i_vecs_omega = {}
+            MI_vecs_omega = {}
+            for pos_str in orientations:
+                rings_str = rings_4d[pos_str]
+                FFT_M_circvecs_omega[pos_str] = {}
+                i_vecs_omega[pos_str] = {}
+                ifft_i_vecs_omega[pos_str] = {}
+                MI_vecs_omega[pos_str] = {}
+                for pos_col in orientations:
+                    rings_col = rings_4d[pos_col]
+                    M_circvecs = Circvec(Params, rings_str, rings_col, omega, Inductance)
+                    N_circ = np.array(rings_str.shape) + np.array(rings_col.shape) - 1
+                    i_vecs_omega[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
+                    MI_vecs_omega[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
+                    FFT_M_circvecs_omega[pos_str][pos_col] = scipy.fft.fftn(M_circvecs, axes=(0, 1, 2))
+                    ifft_i_vecs_omega[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
+            FFT_M_circvecs_freq.append(FFT_M_circvecs_omega)
+            i_vecs_freq.append(i_vecs_omega)
+            ifft_i_vecs_freq.append(ifft_i_vecs_omega)
+            MI_vecs_freq.append(MI_vecs_omega)
+        print('Cirvecs: Done for all frequencies')
 
     L, C, R = [], [], []
     for ring in rings:
@@ -239,39 +271,23 @@ def solvesystem(Omega, Params: dict, rings_4d: dict, phi_0z_calc, Inductance: di
         else:
             IfSlicedCurrents = True
 
-
-    # Preparing empty arrays for pyfftw
-    print('Cirvecs forming')
-    for pos_str in tqdm(orientations):
-        rings_str = rings_4d[pos_str]
-        FFT_M_circvecs[pos_str] = {}
-        i_vecs[pos_str] = {}
-        ifft_i_vecs[pos_str] = {}
-        MI_vecs[pos_str] = {}
-        for pos_col in orientations:
-            rings_col = rings_4d[pos_col]
-            M_circvecs = Circvec(Params, rings_str, rings_col, Omega[0], Inductance)
-
-            N_circ = np.array(rings_str.shape) + np.array(rings_col.shape) - 1
-            i_vecs[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
-            MI_vecs[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
-
-            FFT_M_circvecs[pos_str][pos_col] = scipy.fft.fftn(M_circvecs, axes = (0, 1, 2))
-            ifft_i_vecs[pos_str][pos_col] = np.zeros(N_circ, dtype=complex)
-
-    print('Circvecs: Done')
-
-
     '''
     Main loop for solving system of equations
     '''
-    for omega in tqdm(Omega):
+    for idx, omega in enumerate(tqdm(Omega)):
         phi_0z_4d = phi_0z_calc(omega)
         phi_0z = np.array(sum([phi_0z_4d[orientation] for orientation in phi_0z_4d], []))
         for orientation in orientations:
             phi_0z_4d[orientation] = np.array(phi_0z_4d[orientation])
         Phi_0z = phi_0z
         M_diag = M_0(omega)
+
+        if Params['Scattering'] == 'Mie_True':
+            FFT_M_circvecs = FFT_M_circvecs_freq[idx]
+            i_vecs = i_vecs_freq[idx]
+            ifft_i_vecs = ifft_i_vecs_freq[idx]
+            MI_vecs = MI_vecs_freq[idx]
+
         if find == 'Voltage':
             def LO(I):
                 MI = M_diag * I

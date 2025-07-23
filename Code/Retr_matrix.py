@@ -17,7 +17,7 @@ E = special.ellipe  # Сomplete elliptic integral of the second kind
 
 c=3e8
 mu_0 = 4 * np.pi * 1e-7
-accuracy = Params['Accuracy']
+accuracy = 1 - Params['Accuracy']
 
 def L_parallel(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:float = 0):
     k = omega/c
@@ -133,7 +133,6 @@ def L_orthogonal(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:
     return L_my(dx, dy, dz, r1, r2, k, width = 0)
 
 def asymp_par(omega:float, dist:float, r1:float, r2:float, accuracy, width:float = 0):
-    Lambda = 2*np.pi*c/omega
     def S(x):
         return ((100.2-x)/10.7)**(-5/3)
     
@@ -145,85 +144,16 @@ def asymp_par(omega:float, dist:float, r1:float, r2:float, accuracy, width:float
         return S(accuracy*100)*r1<dist
 
 def asymp_ort(omega:float, dist:float, r1:float, r2:float, accuracy, width:float = 0):
-    Lambda = 2*np.pi*c/omega
-    def S_0(x):
-        return 89.831*(x-100)**3 + 0.0922*(x-100)**2 - 0.0006*(x-100) + 89.831 - accuracy*100
+    def S(x):
+        return ((94.92-x)/6.3)**(-5/7)
     
-    def S_1(x):
-        return 93.204*(x-150)**3 + 0.0466*(x-150)**2 - 0.0003*(x-150) + 93.204 - accuracy*100
-    
-    def S_2(x):
-        return 94.8889*(x-200)**3 + 0.0247*(x-200)**2 - 0.0001*(x-200) + 94.8889 - accuracy*100
-    
-    def S_3(x):
-        return 95.8974*(x-250)**3 + 0.0162*(x-250)**2 - 0.0001*(x-250) + 95.8974 - accuracy*100
-
-    x_min_0 = 100
-    x_max_0 = 150
-    x_min_1 = x_max_0
-    x_max_1 = 200
-    x_min_2 = x_max_1
-    x_max_2 = 250
-    x_min_3 = x_max_2
-    x_max_3 = 300
-    step = 0.1
-
-    if Lambda>30*r1:
+    if accuracy > 0.9492:
         return False
-    
+    elif accuracy <= 0.936609587058744:
+        return True
     else:
-        if dist<3*Lambda:
-            return False
-        else:
+        return S(accuracy*100)*r1<dist
 
-            if accuracy > 0.96567471:
-                return False
-            elif accuracy <= 0.89830974:
-                return True
-            elif 0.89830974< accuracy <= 0.93203955:
-                x_values = np.arange(x_min_0, x_max_0 + step, step)
-                roots = []
-
-                for i in range(len(x_values) - 1):
-                    a, b = x_values[i], x_values[i + 1]
-                    if S_0(a) * S_0(b) < 0:
-                        sol = root_scalar(S_0, bracket=[a, b], method='bisect', xtol=1e-6)
-                        if sol.converged:
-                            roots.append(sol.root)
-                return max(roots)*r1<dist
-            elif 0.93203955< accuracy <= 0.94888871:
-                x_values = np.arange(x_min_1, x_max_1 + step, step)
-                roots = []
-
-                for i in range(len(x_values) - 1):
-                    a, b = x_values[i], x_values[i + 1]
-                    if S_1(a) * S_1(b) < 0:
-                        sol = root_scalar(S_1, bracket=[a, b], method='bisect', xtol=1e-6)
-                        if sol.converged:
-                            roots.append(sol.root)
-                return max(roots)*r1<dist
-            elif 0.94888871< accuracy <= 0.95897383:
-                x_values = np.arange(x_min_2, x_max_2 + step, step)
-                roots = []
-
-                for i in range(len(x_values) - 1):
-                    a, b = x_values[i], x_values[i + 1]
-                    if S_2(a) * S_2(b) < 0:
-                        sol = root_scalar(S_2, bracket=[a, b], method='bisect', xtol=1e-6)
-                        if sol.converged:
-                            roots.append(sol.root)
-                return max(roots)*r1<dist            
-            elif 0.95897383< accuracy <= 0.96567471:
-                x_values = np.arange(x_min_3, x_max_3 + step, step)
-                roots = []
-
-                for i in range(len(x_values) - 1):
-                    a, b = x_values[i], x_values[i + 1]
-                    if S_3(a) * S_3(b) < 0:
-                        sol = root_scalar(S_3, bracket=[a, b], method='bisect', xtol=1e-6)
-                        if sol.converged:
-                            roots.append(sol.root)
-                return max(roots)*r1<dist   
                      
 def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
     """Calculates mutual inductance between two rings with both parallel 
@@ -257,10 +187,10 @@ def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
     id_1 = f"{dx} {dy} {dz} {r1} {r2} {First_ring.pos}{Second_ring.pos}"
     id_2 = f"{-dx} {-dy} {-dz} {r2} {r1} {Second_ring.pos}{First_ring.pos}"
 
-    # if id_1 in Data:
-    #     return Data[id_1]
-    # elif id_2 in Data:
-    #     return Data[id_2]
+    if id_1 in Data:
+        return Data[id_1]
+    elif id_2 in Data:
+        return Data[id_2]
     
     if dx == 0 and dy == 0 and dz == 0:
         Data[id_1] = 0
@@ -276,7 +206,6 @@ def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
             l = L_parallel(omega, dy, -dz, dx, r1, r2, w)
         else:                                               # X-oriented rings
             l = L_parallel(omega, -dz, dx, dy, r1, r2, w)
-        print('Double integral')
 
     elif First_ring.pos == Second_ring.pos and asymp_par(omega, R, r1, r2, accuracy):
         if First_ring.pos == "z":                           # Z-oriented rings
@@ -285,7 +214,6 @@ def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
             l = L_par_asymp(omega, dx, -dz, dy, r1, r2, w)
         else:                                               # X-oriented rings
             l = L_par_asymp(omega, -dz, dy, dx, r1, r2, w)
-        print('Single intergal')
 
         # Consider all types of orthogonal orientation
 
@@ -322,7 +250,7 @@ def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
                 l = L_ort_asymp(omega, dy, (dz), (dx), r1, r2, w)
             else:                                           # X-Y oriented pair
                 l = L_ort_asymp(omega, (dz), dy, (dx), r1, r2, w)
-    Data[id_1], Data[id_2] = [l * mu_0] * 2
+    Data[id_1], Data[id_2] = [l] * 2
     return l
 
 # Calculating mutual inductance for each pair

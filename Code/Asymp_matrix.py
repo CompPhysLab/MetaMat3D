@@ -47,6 +47,7 @@ def L_parallel(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:fl
 
     c=3e8
     k=omega/c
+    dist = sqrt(dx ** 2 + dy ** 2+dz**2)
 
     def dl(alpha, dx, dy, dz, r_1, r_2):
         db = sqrt(dx ** 2 + dy ** 2)
@@ -74,8 +75,8 @@ def L_parallel(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:fl
     else:
         L, err = integrate.quad(dl, 0, 2 * pi, args= (dx, dy, dz, r1, r2))
     return L * mu_0 * \
-    np.exp(1j * k * np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)) * (1-1j*k*np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)) + \
-    np.exp(1j * k * np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)) * np.pi*k**2*r1**2*r2**2*(dx ** 2 + dy ** 2)/4/(dx ** 2 + dy ** 2 + dz ** 2)**(3/2)
+    np.exp(1j * k * dist) * (1-1j*k*dist) + \
+    np.exp(1j * k * dist) * np.pi*k**2*r1**2*r2**2*(dx ** 2 + dy ** 2)/4/dist**3
 
 # Computing for orthogonal-oriented rings
 
@@ -104,6 +105,7 @@ def L_orthogonal(omega, dx:float, dy:float ,dz:float, r1:float, r2:float, width:
     """    
     c=3e8
     k=omega/c
+    dist = sqrt(dx ** 2 + dy ** 2+dz**2)
 
     def dl(alpha, dx, dy, dz, r_1, r_2):
         dp = sqrt((dx - r_2 * sin(alpha)) ** 2 + dy ** 2)
@@ -131,5 +133,5 @@ def L_orthogonal(omega, dx:float, dy:float ,dz:float, r1:float, r2:float, width:
     else:
         L, err = integrate.quad(dl, 0, 2 * pi, args=(dx, dy, dz, r1, r2))
     return L * mu_0 * \
-    np.exp(1j * k * np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)) * (1-1j*k*np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)) - \
-    np.exp(1j * k * np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)) * np.pi*k**2*r1**2*r2**2*dx*dz/4/(dx ** 2 + dy ** 2 + dz ** 2)**(3/2)
+    np.exp(1j * k * dist) * (1-1j*k*dist) - \
+    np.exp(1j * k * dist) * np.pi*k**2*r1**2*r2**2*dy*dz/4/dist**3
