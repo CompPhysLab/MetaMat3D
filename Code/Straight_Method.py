@@ -2,13 +2,19 @@
 
 import numpy as np
 from scipy.linalg import solve
-from Impedance_matrix import Matrix
+from Impedance_matrix import Matrix as Matrix_Mie_False
+from Retr_matrix import Matrix as Matrix_Mie_True
 from tqdm import tqdm
 from typing import Union, Callable
 from Ring_Class import Ring
 import numpy.typing as npt
 
-def solvesystem(Params:dict, rings_4d:dict, phi_0z_4d:dict, Inductance:dict = {}, find:str = 'Voltage', tol:float = 0) -> dict:
+Matrixes = {
+    'Mie_False': Matrix_Mie_False,
+    'Mie_True': Matrix_Mie_True
+}
+
+def solvesystem(Omega, Params:dict, rings_4d:dict, phi_0z_calc, Inductance:dict = {}, find:str = 'Voltage', tol:float = 0) -> dict:
     """Function to solve system of equations using straight method
     for Voltage or Currents
 
@@ -32,13 +38,20 @@ def solvesystem(Params:dict, rings_4d:dict, phi_0z_4d:dict, Inductance:dict = {}
     dict
         dictionary with calculated currents in each ring
     """    
+
+    Matrix = Matrixes[Params['Scattering']]
     Params['Solver_type'] = 'Straight'
     Omegas = Params['Omega']    
     Omega = np.linspace(Omegas[0], Omegas[1], Omegas[2])
     # Unpacking parameters
     # Solve system in currents terms and return currents in each ring
     rings = sum([rings_4d[orientation] for orientation in rings_4d], [])
-    phi_0z = np.array(sum([phi_0z_4d[orientation] for orientation in phi_0z_4d], []))
+    orientations = rings_4d.keys()
+
+    for orientation in orientations:
+        
+        Nz, Ny, Nx = Params['N'][orientation]['nz'], Params['N'][orientation]['ny'], Params['N'][orientation]['nx']
+        rings_4d[orientation] = np.array(rings_4d[orientation]).reshape(Nz, Ny, Nx)
 
     Number = len(rings)
 
@@ -54,16 +67,36 @@ def solvesystem(Params:dict, rings_4d:dict, phi_0z_4d:dict, Inductance:dict = {}
     P = []
     CURRENTS = []
     # External field
-    Phi_0z = phi_0z
 
-    print('Matrix forming')
-    M = Matrix(rings, Data = Inductance)
-    print('Matrix: Done')
+    if Params['Scattering'] == 'Mie_False':
+        print('Matrix forming once')
+        M = Matrix(Omega[0], rings, Data = Inductance)
+        print('Matrix: Done')
+    else:
+        print('Matrix forming for each frequency')
+        M_freq = []
+        for omega in tqdm(Omega):
+            M = Matrix(omega, rings, Data = Inductance)
+            M_freq.append(M)
+        print('Cirvecs: Done for all frequencies')
+
+            
+
     if find == 'Currents':
         print('Straight solving (Currents)')
-        for omega in tqdm(Omega):
+        for idx, omega in enumerate(tqdm(Omega)):
+
+            phi_0z_4d = phi_0z_calc(omega)
+            phi_0z = np.array(sum([phi_0z_4d[orientation] for orientation in phi_0z_4d], []))
+            for orientation in orientations:
+                phi_0z_4d[orientation] = np.array(phi_0z_4d[orientation])
+            Phi_0z = phi_0z
+
+            if Params['Scattering'] == 'Mie_True':
+                M = M_freq[idx]
+
             # Solve equation (diag(Z_0)/jw - M)I = Phi_0z
-            I = solve(np.diag(M_0(omega)) - M, Phi_0z)
+            I = solve(np.diag(M_0(omega)) - M, Phi_0z[idx])
             CURRENTS.append(I)
             start = 0
             p = []
@@ -80,10 +113,20 @@ def solvesystem(Params:dict, rings_4d:dict, phi_0z_4d:dict, Inductance:dict = {}
     elif find == 'Voltage':
         print('Straight solving (Voltage)')
         # Solve equation 
-        for omega in tqdm(Omega):
+        for idx, omega in enumerate(tqdm(Omega)):
+
+            phi_0z_4d = phi_0z_calc(omega)
+            phi_0z = np.array(sum([phi_0z_4d[orientation] for orientation in phi_0z_4d], []))
+            for orientation in orientations:
+                phi_0z_4d[orientation] = np.array(phi_0z_4d[orientation])
+            Phi_0z = phi_0z
+
+            if Params['Scattering'] == 'Mie_True':
+                M = M_freq[idx]
+
             M_diag = M_0(omega)
             # Solve equation (1/jw - M/M_diag)I = Phi_0z/M_diag
-            I = solve(np.eye(Number) - np.diag(1/M_diag)@M, Phi_0z/M_diag)
+            I = solve(np.eye(Number) - np.diag(1/M_diag)@M, Phi_0z[idx]/M_diag)
             CURRENTS.append(I)
             start = 0
             p = []
@@ -101,7 +144,7 @@ def solvesystem(Params:dict, rings_4d:dict, phi_0z_4d:dict, Inductance:dict = {}
     Data['Omega'] = Omega
     Data['Currents'] = CURRENTS
     Data['Polarization'] = P
-    Data['Phi_0z'] = list(phi_0z)
+    Data['Phi_0z'] = list(Phi_0z)
     return Data
 
 def effective_mu(Params:dict) -> Callable[[Union[float, npt.NDArray[np.float64]]], Union[float, npt.NDArray[np.float64]]]:

@@ -201,7 +201,7 @@ def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
 
 # Calculating mutual inductance for each pair
 
-def Matrix(rings:List[Ring], Data:dict = {}) -> np.ndarray:
+def Matrix(omega, rings:List[Ring], Data:dict = {}) -> np.ndarray:
     """Calculates mutual inductance matrix for all rings
     and represents it as a square matrix
 
@@ -222,6 +222,6 @@ def Matrix(rings:List[Ring], Data:dict = {}) -> np.ndarray:
         for m in range(n, len(rings)):
             R1 = rings[n]
             R2 = rings[m]
-            M[n][m] = Mnm(R1, R2, Data)
+            M[n][m] = Mnm(omega, R1, R2, Data)
             M[m][n] = M[n][m]
     return M

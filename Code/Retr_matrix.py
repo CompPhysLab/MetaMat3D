@@ -271,7 +271,7 @@ def Matrix(omega, rings:List[Ring], Data:dict = {}) -> np.ndarray:
     np.ndarray
         mutual inductance matrix with zeros on the diagonal
     """    
-    M = np.zeros((len(rings), len(rings)))
+    M = np.zeros((len(rings), len(rings)), dtype=complex)
     for n in tqdm(range(len(rings))):
         for m in range(n, len(rings)):
             R1 = rings[n]
