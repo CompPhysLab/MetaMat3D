@@ -271,6 +271,7 @@ def solvesystem(Omega, Params: dict, rings_4d: dict, phi_0z_calc, Inductance: di
         else:
             IfSlicedCurrents = True
 
+
     '''
     Main loop for solving system of equations
     '''

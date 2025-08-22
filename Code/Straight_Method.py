@@ -45,8 +45,9 @@ def solvesystem(Omega, Params:dict, rings_4d:dict, phi_0z_calc, Inductance:dict 
     Omega = np.linspace(Omegas[0], Omegas[1], Omegas[2])
     # Unpacking parameters
     # Solve system in currents terms and return currents in each ring
+    
+    orientations = list(rings_4d.keys())
     rings = sum([rings_4d[orientation] for orientation in rings_4d], [])
-    orientations = rings_4d.keys()
 
     for orientation in orientations:
         
@@ -75,10 +76,10 @@ def solvesystem(Omega, Params:dict, rings_4d:dict, phi_0z_calc, Inductance:dict 
     else:
         print('Matrix forming for each frequency')
         M_freq = []
-        for omega in tqdm(Omega):
+        for omega in Omega:
             M = Matrix(omega, rings, Data = Inductance)
             M_freq.append(M)
-        print('Cirvecs: Done for all frequencies')
+        print('Matrix: Done for all frequencies')
 
             
 
@@ -87,7 +88,7 @@ def solvesystem(Omega, Params:dict, rings_4d:dict, phi_0z_calc, Inductance:dict 
         for idx, omega in enumerate(tqdm(Omega)):
 
             phi_0z_4d = phi_0z_calc(omega)
-            phi_0z = np.array(sum([phi_0z_4d[orientation] for orientation in phi_0z_4d], []))
+            phi_0z = np.array(sum([phi_0z_4d[orientation] for orientation in orientations], []))
             for orientation in orientations:
                 phi_0z_4d[orientation] = np.array(phi_0z_4d[orientation])
             Phi_0z = phi_0z
@@ -96,7 +97,7 @@ def solvesystem(Omega, Params:dict, rings_4d:dict, phi_0z_calc, Inductance:dict 
                 M = M_freq[idx]
 
             # Solve equation (diag(Z_0)/jw - M)I = Phi_0z
-            I = solve(np.diag(M_0(omega)) - M, Phi_0z[idx])
+            I = solve(np.diag(M_0(omega)) - M, Phi_0z)
             CURRENTS.append(I)
             start = 0
             p = []
@@ -112,11 +113,10 @@ def solvesystem(Omega, Params:dict, rings_4d:dict, phi_0z_calc, Inductance:dict 
 
     elif find == 'Voltage':
         print('Straight solving (Voltage)')
-        # Solve equation 
         for idx, omega in enumerate(tqdm(Omega)):
 
             phi_0z_4d = phi_0z_calc(omega)
-            phi_0z = np.array(sum([phi_0z_4d[orientation] for orientation in phi_0z_4d], []))
+            phi_0z = np.array(sum([phi_0z_4d[orientation] for orientation in orientations], []))
             for orientation in orientations:
                 phi_0z_4d[orientation] = np.array(phi_0z_4d[orientation])
             Phi_0z = phi_0z
@@ -126,7 +126,7 @@ def solvesystem(Omega, Params:dict, rings_4d:dict, phi_0z_calc, Inductance:dict 
 
             M_diag = M_0(omega)
             # Solve equation (1/jw - M/M_diag)I = Phi_0z/M_diag
-            I = solve(np.eye(Number) - np.diag(1/M_diag)@M, Phi_0z[idx]/M_diag)
+            I = solve(np.eye(Number) - np.diag(1/M_diag)@M, Phi_0z/M_diag)
             CURRENTS.append(I)
             start = 0
             p = []

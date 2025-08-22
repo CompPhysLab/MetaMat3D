@@ -5,7 +5,7 @@ import numpy as np
 # Parameters for system used in modeling
 
 L = 13.459 * 10 ** -9                   # Self-inductance
-C = 470 * 10 ** -11                     # Capacitance
+C = 470 * 10 ** -10                     # Capacitance
 R = 0.002                               # Resistance
 omega_0 = 1 / np.sqrt(L * C)            # Resonance frequency
 Omega =  np.linspace(omega_0*0.9, omega_0*1.1, 1000) # Frequency range
@@ -58,7 +58,7 @@ Params = {
     'Threads': 1,
     'Solver_name': 'lgmres',
     'Scattering': 'Mie_False',
-    'Accuracy': 0.99,
+    'Accuracy': 0,
     'Tol' : 1e-5,
     'Type' : 'border',
     'Slices': {

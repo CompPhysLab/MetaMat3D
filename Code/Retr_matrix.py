@@ -88,8 +88,9 @@ def L_orthogonal(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:
 #            return mu_0 / 4 /np.pi * r_1  * np.cos(phi_1) * np.cos(k*dR) / dR
 
         def dA_y(phi_1):
-            dR = np.sqrt((dx + r_2 * np.cos(phi_2)) ** 2 + \
-            (dy + r_2 * np.sin(phi_2) + r_1 * np.sin(phi_1)) ** 2 + (dz+r_2 * np.cos(phi_2)) ** 2)
+            dR = np.sqrt((dx + r_1 * np.cos(phi_1)) ** 2 + \
+            (dy + r_2 * np.sin(phi_2) + r_1 * np.sin(phi_1)) ** 2 + \
+            (dz-r_2 * np.cos(phi_2)) ** 2)
             return  mu_0 / 4 /np.pi * r_1  * np.sin(phi_1) * np.cos(k*dR) / dR
 
 #        A_x = integrate.quad(dA_x, 0, 2 * np.pi)[0]
@@ -106,8 +107,9 @@ def L_orthogonal(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:
 #            return mu_0 / 4 /np.pi * r_1  * np.cos(phi_1) * np.sin(k*dR) / dR
 
         def dA_y(phi_1):
-            dR = np.sqrt((dx + r_2 * np.cos(phi_2)) ** 2 + \
-            (dy + r_2 * np.sin(phi_2) + r_1 * np.sin(phi_1)) ** 2 + (dz+r_2 * np.cos(phi_2)) ** 2)
+            dR = np.sqrt((dx + r_1 * np.cos(phi_1)) ** 2 + \
+            (dy + r_2 * np.sin(phi_2) + r_1 * np.sin(phi_1)) ** 2 + \
+            (dz-r_2 * np.cos(phi_2)) ** 2)
             return  mu_0 / 4 /np.pi * r_1  * np.sin(phi_1) * np.sin(k*dR) / dR
 
 #        A_x = integrate.quad(dA_x, 0, 2 * np.pi)[0]
