@@ -13,7 +13,6 @@ __pycache__/
 # Ignore large calculation data, images and testing data
 Code/DATA*
 Code/Images*
-Code/points*
 Code/Testing_Debug*
 *__pycache__/
 Code/TestingFile.ipynb

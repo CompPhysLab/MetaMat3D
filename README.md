@@ -23,8 +23,8 @@ Contains packing structures to create lists of rings in correct order for fast a
 ### `Ring_visualize.ipynb`
 Jupiter Notebook to create visualization of structure for repots and checking if packing was correct. Because of using `plotly` it's possible to interact smoothly with 3D objects.
 
-### `Impedance_matrix.py`
-Calculating mutual part of impedance, that based only at geomerty
+### `Impedance_matrix.py`, `Retr_matrix.py`
+Calculating mutual part of impedance in quasistatic and with retardation, that based only at geomerty
 of the problem. 
 
 #### `Mnm`

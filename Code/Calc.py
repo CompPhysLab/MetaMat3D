@@ -30,7 +30,7 @@ Solvers = {
 }
 
 def z_coord(rings_4d, orientation):
-    """Extract only z-coordinates of rings for given orientation"""
+    """Extract z-coordinates of rings for given orientation"""
     z_coords = []
     rings = rings_4d[orientation]
     # Iterate through 3D array of rings

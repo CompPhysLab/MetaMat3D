@@ -27,7 +27,7 @@ def L_parallel(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:fl
         def dA(phi_1):
             dR = np.sqrt((dx + r_2 * np.cos(phi_2) - r_1 * np.cos(phi_1)) ** 2 + \
             (dy + r_2 * np.sin(phi_2) - r_1 * np.sin(phi_1)) ** 2 + dz ** 2)
-            return mu_0 / 4 /np.pi * r_1 * np.cos(k*dR) / dR
+            return 1 / 4 /np.pi * r_1 * np.cos(k*dR) / dR
 
         def dA_x(phi_1):
             return dA(phi_1) * np.cos(phi_1)
@@ -46,7 +46,7 @@ def L_parallel(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:fl
         def dA(phi_1):
             dR = np.sqrt((dx + r_2 * np.cos(phi_2) - r_1 * np.cos(phi_1)) ** 2 + \
             (dy + r_2 * np.sin(phi_2) - r_1 * np.sin(phi_1)) ** 2 + dz ** 2)
-            return mu_0 / 4 /np.pi * r_1 * np.sin(k*dR) / dR
+            return 1 / 4 /np.pi * r_1 * np.sin(k*dR) / dR
 
         def dA_x(phi_1):
             return dA(phi_1) * np.cos(phi_1)
@@ -91,7 +91,7 @@ def L_orthogonal(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:
             dR = np.sqrt((dx + r_1 * np.cos(phi_1)) ** 2 + \
             (dy + r_2 * np.sin(phi_2) + r_1 * np.sin(phi_1)) ** 2 + \
             (dz-r_2 * np.cos(phi_2)) ** 2)
-            return  mu_0 / 4 /np.pi * r_1  * np.sin(phi_1) * np.cos(k*dR) / dR
+            return  1 / 4 /np.pi * r_1  * np.sin(phi_1) * np.cos(k*dR) / dR
 
 #        A_x = integrate.quad(dA_x, 0, 2 * np.pi)[0]
         A_y = integrate.quad(dA_y, 0, 2 * np.pi)[0]
@@ -110,7 +110,7 @@ def L_orthogonal(omega, dx:float, dy:float, dz:float, r1:float, r2:float, width:
             dR = np.sqrt((dx + r_1 * np.cos(phi_1)) ** 2 + \
             (dy + r_2 * np.sin(phi_2) + r_1 * np.sin(phi_1)) ** 2 + \
             (dz-r_2 * np.cos(phi_2)) ** 2)
-            return  mu_0 / 4 /np.pi * r_1  * np.sin(phi_1) * np.sin(k*dR) / dR
+            return  1 / 4 /np.pi * r_1  * np.sin(phi_1) * np.sin(k*dR) / dR
 
 #        A_x = integrate.quad(dA_x, 0, 2 * np.pi)[0]
         A_y = integrate.quad(dA_y, 0, 2 * np.pi)[0]
@@ -186,8 +186,8 @@ def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
     # To avoid calculating integrals with same params each time
     # there is a dictionary with all parameters and values
 
-    id_1 = f"{dx} {dy} {dz} {r1} {r2} {First_ring.pos}{Second_ring.pos}"
-    id_2 = f"{-dx} {-dy} {-dz} {r2} {r1} {Second_ring.pos}{First_ring.pos}"
+    id_1 = f"{dx} {dy} {dz} {r1} {r2} {First_ring.pos}{Second_ring.pos} {omega}"
+    id_2 = f"{-dx} {-dy} {-dz} {r2} {r1} {Second_ring.pos}{First_ring.pos} {omega}"
 
     if id_1 in Data:
         return Data[id_1]
@@ -253,7 +253,7 @@ def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
             else:                                           # X-Y oriented pair
                 l = L_ort_asymp(omega, (dz), dy, (dx), r1, r2, w)
     Data[id_1], Data[id_2] = [l] * 2
-    return l
+    return l * mu_0
 
 # Calculating mutual inductance for each pair
 
