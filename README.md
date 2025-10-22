@@ -1,126 +1,90 @@
 # MetaMat3D
 
-## OOP structure 
+Numerical playground for studying quasi-static electromagnetic response of 3D metamaterials built from split-ring resonators (SRRs). The codebase focuses on explicit ring-level models, finite metastructure assembly, and direct solvers for induced currents and effective polarizabilities.
 
-- Metamaterial:
-	
-	Contains all necessary parameters to determine material properties in accordance with continuous medium theory and also methods for its calculation. As main properties were chosen:
+## Repository Layout
 
-	- **Magnetic permeability** verified only for quasi-static mode
-	- **Magnetic polarizability** : applicable only for quasi-static mode
-	- **Scattering cross-section** : applicable only with taking into account retardation.
+- `Quasistatic/Metamaterial.py` — ring primitives, SRR effective-medium model, Plotly helpers.
+- `Quasistatic/Metastructure.py` — finite assemblies with configurable shape, geometry, and orientations.
+- `Quasistatic/Solvers.py` — direct current solver, polarizability post-processing, solution I/O.
+- `Quasistatic/Calc.py` — minimal example that builds a cubic structure and runs a sweep.
+- `Quasistatic/Parameters.py` — default SRR parameters and frequency grids.
+- `Quasistatic/Data*/` — sample current/polarizability outputs.
+- `requirements.txt` — Python dependencies (numpy, plotly, colormaps, scipy, tqdm, matplotlib, etc.).
 
-	These parameters were calculated for continuous medium structures with the same properties as efficiently calculated for metamaterial of split-ring resonators. The chosen shape is:
+## Core Objects
 
-	- Sphere and Cube (3D Structures)
-	- Disk and Square (2D Structures)
-	- Needle (1D structure)
+### `Ring`
+- Immutable description of a single SRR: center coordinates, orientation (`pos` ∈ {`x`,`y`,`z`}), radius, strip width, and RLC parameters.
+- `__repr__`/`__str__` expose concise diagnostics for logging.
 
-	Also containing functions for calculating mutual inductance between resonators in two cases - with or not retardation effects.
+### `visualize_rings`
+- Plotly helper that renders a list of `Ring` instances with orientation-aware coloring.
+- Highlights high-resistance rings (treated as air) using alpha blending.
 
-- Metastructure 
+### `SRR_metamaterial`
+- Encapsulates effective-medium parameters for a periodic SRR lattice.
+- Constructor requires `(R, L, C, radius, (dz, dy, dx))` and optionally strip width.
+- Key methods:
+  - `set_period(period)` — validate and update lattice spacing.
+  - `get_params()` — serialized view used by `MetaSolver` outputs.
+  - `effective_mu(omega)` — Lorentz-type response including lattice sum correction.
+  - `spherical_polarizability`, `disk_polarizability`, `needle_polarizability` — helper formulas for standard shapes.
 
-	Discrete finite model of studying metastructures. As long as unit cell size is fixed in metamaterials, contains number of metacell along each axes as for rectangular area. Then it is possible to change shape:
+### `Metastructure`
+- Builds finite collections of rings on top of an `SRR_metamaterial`.
+- Constructor arguments: `shape` (nz, ny, nx), `geometry` (`rectangle`, `ellipse`, `cylinder-x/y/z`), `Type` (`smooth`, `ragged`, `centred`, `anizotropic`), `orientations`, and optional `full_grid` flag.
+- Validates orientation list, grid size, and geometry choice at construction time.
+- Key API:
+  - `set_shape(shape)` / `set_type(type)` / `set_geometry(geometry)` update configuration with safety checks.
+  - `fill_grid()` populates `self.rings` with `Ring` instances, handling offsets for different boundary types and optional full-grid masking.
+  - `visualize(...)` delegates to `visualize_rings` to render the populated structure.
+  - `name` property returns a canonical identifier (`{type}_{geometry}_{nz}x{ny}x{nx}`) used in saved datasets.
 
-	- Cubic (rectangular) : all area filled with split-rings
-	- Spherical (or Elliptic) : create a sphere (or ellipse) inscribed into rectangular area.
-	- Cylindrical (x, y, z oriented) : crates a cylinder along chosen axes inscribed into rectangular area. 
-	- Custom shape (coming soon) - an a 3D mask describes which ring is should be or not if metastructure (if 1 ring stay same in accordance to rectangular grid, if 0 ring is removed)
+### `MetaSolver`
+- Accepts either a pre-built `rings` list or a `Metastructure` instance plus a frequency sweep `Omega`.
+- Builds impedance diagonal, mutual inductance matrix (via `RingsInductance.py`), and stores metadata for later export.
+- Main operations:
+  - `direct_solve(voltages)` — solves for complex currents across the sweep.
+  - `direct_polarizability(axes, save_currents=False)` — computes averaged currents per orientation and rescales to magnetic moment per unit cell.
 
-	The second property describes unit-cell structure and border condition:
+### `MetaSolution`
+- Light-weight container for solver output (`currents`, `polarizability`, `Omega`, metadata).
+- `save_sol(folder)` writes JSON parameters plus NPZ archives for currents/polarizability.
+- `open_sol(folder, struct, load_currents=True)` restores solution files, including object arrays stored with `allow_pickle=True`.
 
-	- Smooth shifted structure - centers of SSR from same unit cell is not at the same place, also center of the unit cell is not a center for any of rings. Structure covered with smooth border of resonators, so only 1 type of rings is on border.
-	- Ragged shifted structure - unit cell is same as in smooth, but border condition is different. Last layers for each face is removed, so at the border is two different oriented rings.
-	- Centred structure - unit cell constructed with rings at the same centers, but different normal vectors. Also the center of unit cell is same as for each ring, so because of symmetry between each orientation there are no possibility to change border conditions. 
-	*Note -rings in same unit cells are not coupled to each other*  
+## Quick Start
 
-	There also protected attribute `MutualInductance` contained all independent inductances for each orientation, that are necessary to fast-fill matrix for straight solution and to apply operator for iterative solver.
+1. Create a virtual environment and install requirements:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+2. Run the demo script:
+   ```bash
+   python Quasistatic/Calc.py
+   ```
+   The script constructs a `Metastructure`, runs `MetaSolver.direct_solve`, and stores results under `Quasistatic/Data/`.
+3. Open `Quasistatic/ResultComparing.ipynb` to explore polarizability plots or compare saved datasets.
 
-So finally structures looks like this:
+## Typical Workflow for periodic metamaterial
+Examples of some structures are in `Calc.py` and `Result.Comparing.ipynb`
+- Configure SRR properties in `Quasistatic/Parameters.py` or instantiate `SRR_metamaterial` directly and create another parameters file.
+- Build a `Metastructure`, adjust `shape`, `geometry`, `Type`, and `orientations`, then call `fill_grid()` .
+- Visualize placement with `Metastructure.visualize()` (returns a Plotly figure object).
+- Instantiate `MetaSolver` with the structure and frequency sweep; compute currents or polarizability.
+- Persist the results via `MetaSolution.save_sol()` and reload them later with `open_sol()` for post-processing.
 
-- Ring
-	- Attributes: 
-	 
-		- Radius 
-		- Width 
-		- Self-capacitance (C)
-		- Self-inductance (L)
-		
-	- Methods: 
-		- Mutual Inductance function 
-		- Self-Frequency
-	
+## Typical Workflow for custom rings structure 
+- Create a rings array for any radiuses, width and positions withou regular grid 
+- Visualize rings if it is necessary 
+- Use only `Rings` argument for a `MetaSolver` to find currents on each given frequency, 
+but you should to configure accurately where and how it should be saved.
 
-- Metamaterial
-	
-	- Attributes:
-		
-		- Ring 
-		- Mesh step
-		- Mesh shifts 
-	
-	- Methods
-		
-		- Magnetic Permeability
-		- Magnetic Permeability resounance frequency
-		- Sphere Magnetic Polarizability 
-		- Sphere Magnetic Polarizability resounance frequency
-		- Disk Magnetic Polarizability
-		- Disk Magnetic Polarizability resounance frequency
-		- Needle Magnetic Polarizability
-		- Needle Magnetic Polarizability resounance frequency 
-		- Sphere Cross section parameters
-		- Sphere internal fields 
-	
-- Metastructure
-	- Attributes
-		
-		- Metamatertials 
-		- Size (x, y, z)
-		- Anizotropic/izotropic
-		- Shape 
-		- Rings Centers Array
-		- Precalculated MutualInductance Array
-	- Methods 
-		
-		- Calculate Mutual Inductance
-		- Calculate EigVals of Extended circulant 
+## Data Conventions
 
-- DirectSolver
-	- Attributes
-		- Metastructure
-		- Matrix
-		- Frequency 
-		- Currents 
-		- Voltages
-		- Sources
-	- Methods 
-		- FillMatrix
-		- Solve
-
-- IterativeSolver
-	- Attributes 
-		- SolverType (lgmres/gmres/bicgstab)
-		- Frequencies 
-		- PreconditionerType (diagonal/circulant/NearestInteraction)
-		- Frequencies
-	- Methods
-		- Fill Circulant Vectors and eigvalues
-		- ApplyOperator
-		- Solve(Number of frequencies)
-
-- MetaSolution 
-	- Attributes 
-		- Frequencies
-		- Memory Restriction
-		- Currents to save 
-		- Other effective params to calculate and save 
-
-	- Methods 
-		- CalcPolarizability 
-		- CalcCrossSection 
-		- CalcField 
-		- Save (Npz and scv)
-		- Open (Npz and scv)
-	
+- Solution folders contain `Params.json`, `currents.npz`, and `polarizability.npz`.
+- `polarizability.npz` stores a Python dict (`{'x': array, 'y': array, 'z': array}`) serialized with `allow_pickle=True`; call `.item()` after loading if NumPy wraps it in an object array.
+- Ring ordering inside the solver follows the orientation list supplied to `Metastructure`, so excitation vectors must respect the same stacking convention.
 
