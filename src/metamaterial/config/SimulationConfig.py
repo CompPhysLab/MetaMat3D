@@ -8,7 +8,6 @@ import numpy.typing as npt
 
 Vector3 = tuple[float, float, float]
 
-
 @dataclass(frozen=True, slots=True)
 class SimulationConfig:
     """Parameters describing one simulation run
@@ -156,7 +155,7 @@ class SimulationConfig:
             if value <= 0:
                 raise ValueError(f"{name} must be positive")
 
-        allowed_packings = {"rectangle", "ellipse", "cylinder"}
+        allowed_packings = {"rectangle", "ellipse", "cylinder_z"}
 
         if self.packing not in allowed_packings:
             raise ValueError(
