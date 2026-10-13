@@ -63,7 +63,7 @@ class SimulationConfig:
         self._validate_ring_parameters()
         self._validate_meta_atom_dimensions()
         self._validate_orientations()
-        self._validate_meta_atom_type()
+        self._validate_type()
         self._validate_geometry()
         self._validate_interaction_model()
         self._validate_excitation()
@@ -169,7 +169,7 @@ class SimulationConfig:
         ):
             raise ValueError("interaction_model must be a non-empty string")
 
-        allowed_models = {"quasistatic", "non-quasistatic"}
+        allowed_models = {"quasistatic", "full_retarded", "approx_retarded"}
 
         if self.interaction_model not in allowed_models:
             raise ValueError(

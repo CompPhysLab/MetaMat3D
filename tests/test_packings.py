@@ -1,8 +1,6 @@
 import numpy as np
 import pytest
-
 from src.metamaterial.geometry.packings import cylinder_z
-
 
 def test_cylinder_z_center_is_inside():
     points = np.array([
@@ -12,7 +10,6 @@ def test_cylinder_z_center_is_inside():
     mask = cylinder_z(points, (4.0, 2.0, 3.0))
 
     np.testing.assert_array_equal(mask, [True])
-
 
 def test_cylinder_z_ellipse_cross_section():
     # Bounds: Lx=4, Ly=2, Lz=3.
@@ -28,7 +25,6 @@ def test_cylinder_z_ellipse_cross_section():
 
     np.testing.assert_array_equal(mask, [True, True, True, False])
 
-
 def test_cylinder_z_height_boundaries():
     points = np.array([
         [2.0, 1.0, 0.0],
@@ -40,7 +36,6 @@ def test_cylinder_z_height_boundaries():
     mask = cylinder_z(points, (4.0, 2.0, 3.0))
 
     np.testing.assert_array_equal(mask, [True, True, False, False])
-
 
 def test_cylinder_z_preserves_point_order():
     points = np.array([
@@ -55,7 +50,6 @@ def test_cylinder_z_preserves_point_order():
     np.testing.assert_array_equal(mask, [False, True, False, True])
     np.testing.assert_array_equal(points[mask], points[[1, 3]])
 
-
 def test_cylinder_z_empty_points():
     points = np.empty((0, 3))
 
@@ -63,7 +57,6 @@ def test_cylinder_z_empty_points():
 
     assert mask.shape == (0,)
     assert mask.dtype == bool
-
 
 @pytest.mark.parametrize("points", [
     np.array([1.0, 2.0, 3.0]),
@@ -73,7 +66,6 @@ def test_cylinder_z_empty_points():
 def test_cylinder_z_invalid_points_shape(points):
     with pytest.raises(ValueError, match=r"points must have shape"):
         cylinder_z(points, (4.0, 2.0, 3.0))
-
 
 @pytest.mark.parametrize("bounds", [
     (4.0, 2.0),

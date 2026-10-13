@@ -91,9 +91,9 @@ def build_geometry(config) -> Geometry:
 
     Notes
     -----
-      1. orientations follow config.orientations (e.g. 'zyx')
-      2. within each orientation, k-j-i order
-      3. shape filtering preserves the order of surviving candidates
+        1. orientations follow config.orientations (e.g. 'zyx')
+        2. within each orientation, k-j-i order
+        3. shape filtering preserves the order of surviving candidates
     """
     dx, dy, dz = float(config.Dx), float(config.Dy), float(config.Dz)
     nx, ny, nz = int(config.Nx), int(config.Ny), int(config.Nz)
