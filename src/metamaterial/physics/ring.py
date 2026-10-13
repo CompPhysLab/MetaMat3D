@@ -1,4 +1,4 @@
-"""Electrical response of split-ring resonators"""
+"""Electrical response of split-ring resonators."""
 
 from __future__ import annotations
 import numpy as np

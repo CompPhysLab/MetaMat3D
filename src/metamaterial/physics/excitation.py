@@ -1,4 +1,4 @@
-"""Build the right-hand side of the linear system"""
+"""Build the right-hand side of the linear system."""
 
 import numpy as np
 import numpy.typing as npt
