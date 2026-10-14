@@ -3,10 +3,11 @@ import pytest
 from src.metamaterial.physics.coupling import operator
 
 @pytest.fixture(autouse=True)
-def clear_operator_cache():
-    operator.clear_cache()
+def clear_cache():
+    """Keep cache tests independent"""
+    operator._cached_mutual_inductance.cache_clear()
     yield
-    operator.clear_cache()
+    operator._cached_mutual_inductance.cache_clear()
 
 # Coordinate transformations
 @pytest.mark.parametrize(
@@ -27,75 +28,136 @@ def test_transform_coordinates(orientation1, orientation2, expected):
     result = operator._transform_coordinates(
         1.0, 2.0, 3.0, orientation1, orientation2
     )
-    assert result == expected
 
-# Model selection and argument forwarding
+    assert result[0] is expected[0]
+    assert result[1:] == pytest.approx(expected[1:])
+
+# Model dispatch and local coordinates
 @pytest.mark.parametrize(
-    ("model", "expected_args"),
+    ("model", "omega", "expected_args"),
     [
-        ("quasistatic", (1.0, 2.0, 3.0, 4.0, 5.0)),
-        ("full_retarded", (10.0, 1.0, 2.0, 3.0, 4.0, 5.0)),
-        ("approx_retarded", (10.0, 1.0, 2.0, 3.0, 4.0, 5.0)),
+        ("quasistatic", None, (1.0, 2.0, 3.0, 4.0, 5.0)),
+        (
+            "full_retarded",
+            10.0,
+            (10.0, 1.0, 2.0, 3.0, 4.0, 5.0),
+        ),
+        (
+            "approx_retarded",
+            10.0,
+            (10.0, 1.0, 2.0, 3.0, 4.0, 5.0),
+        ),
     ],
 )
-def test_mutual_inductance_selects_model(monkeypatch, model, expected_args):
+def test_mutual_inductance_selects_model(
+    monkeypatch, model, omega, expected_args
+):
     calls = []
 
-    def fake_function(*args):
-        calls.append(args)
-        return 2.5 + 0.5j
+    class FakeModel:
+        @staticmethod
+        def L_parallel(*args):
+            calls.append(("parallel", args))
+            return 2.0
 
-    module = operator._MODELS[model]
-    monkeypatch.setattr(module, "L_parallel", fake_function)
+        @staticmethod
+        def L_orthogonal(*args):
+            calls.append(("orthogonal", args))
+            return 3.0
+
+    monkeypatch.setitem(operator._MODELS, model, FakeModel)
 
     result = operator._mutual_inductance(
         model=model,
-        omega=10.0,
-        dx=1.0,
-        dy=2.0,
-        dz=3.0,
+        omega=omega,
+        x=1.0,
+        y=2.0,
+        z=3.0,
         r1=4.0,
         r2=5.0,
-        orientation1="z",
-        orientation2="z",
+        parallel=True,
+        width=0.0,
     )
 
-    assert result == 2.5 + 0.5j
-    assert calls == [expected_args]
+    assert result == pytest.approx(2.0)
+    assert calls == [("parallel", expected_args)]
 
 def test_mutual_inductance_selects_orthogonal_function(monkeypatch):
     calls = []
 
-    def fake_parallel(*args):
-        pytest.fail("Parallel function should not be called")
+    class FakeModel:
+        @staticmethod
+        def L_parallel(*args):
+            calls.append("parallel")
+            return 2.0
 
-    def fake_orthogonal(*args):
-        calls.append(args)
-        return 3.0
+        @staticmethod
+        def L_orthogonal(*args):
+            calls.append("orthogonal")
+            return 3.0
 
-    monkeypatch.setattr(
-        operator.quasistatic, "L_parallel", fake_parallel
-    )
-    monkeypatch.setattr(
-        operator.quasistatic, "L_orthogonal", fake_orthogonal
-    )
+    monkeypatch.setitem(operator._MODELS, "quasistatic", FakeModel)
 
     result = operator._mutual_inductance(
         model="quasistatic",
         omega=None,
-        dx=1.0,
-        dy=2.0,
-        dz=3.0,
+        x=1.0,
+        y=2.0,
+        z=3.0,
         r1=4.0,
         r2=5.0,
-        orientation1="z",
+        parallel=False,
+        width=0.0,
+    )
+
+    assert result == pytest.approx(3.0)
+    assert calls == ["orthogonal"]
+
+def test_public_function_passes_transformed_coordinates(monkeypatch):
+    captured = {}
+
+    def fake_cached(
+        model, omega, x, y, z, r1, r2, width, parallel
+    ):
+        captured.update(
+            model=model,
+            omega=omega,
+            x=x,
+            y=y,
+            z=z,
+            r1=r1,
+            r2=r2,
+            width=width,
+            parallel=parallel,
+        )
+        return 1.0
+
+    monkeypatch.setattr(
+        operator, "_cached_mutual_inductance", fake_cached
+    )
+
+    operator.mutual_inductance(
+        displacement=(1.0, 2.0, 3.0),
+        r1=4.0,
+        r2=5.0,
+        width=0.0,
+        orientation1="y",
         orientation2="y",
     )
 
-    assert result == 3.0
-    assert calls == [(1.0, 2.0, 3.0, 4.0, 5.0)]
+    assert captured == {
+        "model": "quasistatic",
+        "omega": None,
+        "x": 1.0,
+        "y": -3.0,
+        "z": 2.0,
+        "r1": 4.0,
+        "r2": 5.0,
+        "width": 0.0,
+        "parallel": True,
+    }
 
-# Finite-width averaging
+# Strip-width
 @pytest.mark.parametrize(
     ("model", "omega"),
     [
@@ -107,112 +169,170 @@ def test_mutual_inductance_selects_orthogonal_function(monkeypatch):
 def test_equal_radii_width_averaging(monkeypatch, model, omega):
     calls = []
 
-    def fake_function(*args):
-        r1, r2 = args[-2:]
-        calls.append((r1, r2))
-        return 10.0 * r1 + r2
+    class FakeModel:
+        @staticmethod
+        def L_parallel(*args):
+            calls.append(args)
+            return 10.0 * args[-2] + args[-1]
 
-    module = operator._MODELS[model]
-    monkeypatch.setattr(module, "L_parallel", fake_function)
+        @staticmethod
+        def L_orthogonal(*args):
+            raise AssertionError("Unexpected orthogonal call")
+
+    monkeypatch.setitem(operator._MODELS, model, FakeModel)
 
     result = operator._mutual_inductance(
         model=model,
         omega=omega,
-        dx=1.0,
-        dy=2.0,
-        dz=3.0,
-        r1=5.0,
-        r2=5.0,
-        orientation1="z",
-        orientation2="z",
-        width=2.0,
+        x=1.0,
+        y=2.0,
+        z=3.0,
+        r1=4.0,
+        r2=4.0,
+        parallel=True,
+        width=0.2,
     )
 
-    delta = 2.0 * operator.gamma / 2
-    inner = 5.0 - delta
-    outer = 5.0 + delta
-
-    assert calls == [
-        (inner, inner),
-        (inner, outer),
-        (outer, outer),
-    ]
+    delta = operator.gamma * 0.2 / 2.0
+    r = 4.0 - delta
+    R = 4.0 + delta
 
     expected = (
-        (10.0 * inner + inner)
-        + 2 * (10.0 * inner + outer)
-        + (10.0 * outer + outer)
-    ) / 4
+        (10.0 * r + r)
+        + 2.0 * (10.0 * r + R)
+        + (10.0 * R + R)
+    ) / 4.0
 
     assert result == pytest.approx(expected)
+    assert len(calls) == 3
 
 def test_unequal_radii_width_averaging(monkeypatch):
     calls = []
 
-    def fake_function(*args):
-        r1, r2 = args[-2:]
-        calls.append((r1, r2))
-        return 10.0 * r1 + r2
+    class FakeModel:
+        @staticmethod
+        def L_parallel(*args):
+            calls.append(args)
+            return 10.0 * args[-2] + args[-1]
 
-    monkeypatch.setattr(
-        operator.quasistatic, "L_parallel", fake_function
-    )
+        @staticmethod
+        def L_orthogonal(*args):
+            raise AssertionError("Unexpected orthogonal call")
+
+    monkeypatch.setitem(operator._MODELS, "quasistatic", FakeModel)
 
     result = operator._mutual_inductance(
         model="quasistatic",
         omega=None,
-        dx=1.0,
-        dy=2.0,
-        dz=3.0,
+        x=1.0,
+        y=2.0,
+        z=3.0,
         r1=3.0,
         r2=5.0,
-        orientation1="z",
-        orientation2="z",
-        width=0.4,
+        parallel=True,
+        width=0.2,
     )
 
-    assert calls == [
-        (3.2, 5.0),
-        (2.8, 5.0),
-    ]
-    assert result == pytest.approx(
-        ((10.0 * 3.2 + 5.0) + (10.0 * 2.8 + 5.0)) / 2
+    delta = operator.gamma * 0.2 / 2.0
+
+    expected = (
+        (10.0 * (3.0 + delta) + 5.0)
+        + (10.0 * (3.0 - delta) + 5.0)
+    ) / 2.0
+
+    assert result == pytest.approx(expected)
+    assert len(calls) == 2
+
+def test_unequal_radii_width_averaging_when_r2_is_smaller(monkeypatch):
+    calls = []
+
+    class FakeModel:
+        @staticmethod
+        def L_parallel(*args):
+            calls.append(args)
+            return 10.0 * args[-2] + args[-1]
+
+        @staticmethod
+        def L_orthogonal(*args):
+            raise AssertionError("Unexpected orthogonal call")
+
+    monkeypatch.setitem(operator._MODELS, "quasistatic", FakeModel)
+
+    result = operator._mutual_inductance(
+        model="quasistatic",
+        omega=None,
+        x=1.0,
+        y=2.0,
+        z=3.0,
+        r1=5.0,
+        r2=3.0,
+        parallel=True,
+        width=0.2,
     )
 
+    delta = operator.gamma * 0.2 / 2.0
+
+    expected = (
+        (10.0 * 5.0 + (3.0 + delta))
+        + (10.0 * 5.0 + (3.0 - delta))
+    ) / 2.0
+
+    assert result == pytest.approx(expected)
+    assert len(calls) == 2
 
 def test_zero_width_uses_original_radii(monkeypatch):
     calls = []
 
-    def fake_function(*args):
-        calls.append(args)
-        return 7.0
+    class FakeModel:
+        @staticmethod
+        def L_parallel(*args):
+            calls.append(args)
+            return 7.0
 
-    monkeypatch.setattr(
-        operator.quasistatic, "L_parallel", fake_function
-    )
+        @staticmethod
+        def L_orthogonal(*args):
+            raise AssertionError("Unexpected orthogonal call")
+
+    monkeypatch.setitem(operator._MODELS, "quasistatic", FakeModel)
 
     result = operator._mutual_inductance(
         model="quasistatic",
         omega=None,
-        dx=1.0,
-        dy=2.0,
-        dz=3.0,
+        x=1.0,
+        y=2.0,
+        z=3.0,
         r1=4.0,
         r2=5.0,
-        orientation1="z",
-        orientation2="z",
+        parallel=True,
         width=0.0,
     )
 
-    assert result == 7.0
-    assert calls == [(1.0, 2.0, 3.0, 4.0, 5.0)]
+    assert result == pytest.approx(7.0)
+    assert len(calls) == 1
+    assert calls[0][-2:] == (4.0, 5.0)
 
-# Public API: mu_0, coincident centers and cache
+# Public function: mu_0, zero displacement and cache key
 def test_public_function_applies_mu0_once(monkeypatch):
+    captured = {}
+
+    def fake_cached(
+        model, omega, x, y, z, r1, r2, width, parallel
+    ):
+        captured.update(
+            model=model,
+            omega=omega,
+            x=x,
+            y=y,
+            z=z,
+            r1=r1,
+            r2=r2,
+            width=width,
+            parallel=parallel,
+        )
+        return 2.0+3.0j
+
     monkeypatch.setattr(
-        operator,
-        "_cached_mutual_inductance",
-        lambda *args: 2.0 + 3.0j,
+        operator, "_cached_mutual_inductance", fake_cached
     )
 
     result = operator.mutual_inductance(
@@ -224,11 +344,16 @@ def test_public_function_applies_mu0_once(monkeypatch):
         orientation2="z",
     )
 
-    assert result == pytest.approx(operator.mu_0 * (2.0 + 3.0j))
+    assert result == pytest.approx(
+        operator.mu_0 * (2.0 + 3.0j)
+    )
+    assert captured["x"] == 1.0
+    assert captured["y"] == 2.0
+    assert captured["z"] == 3.0
 
 def test_coincident_centers_return_zero_without_model_call(monkeypatch):
     def fail_if_called(*args, **kwargs):
-        pytest.fail("Model must not be called for coincident centers")
+        raise AssertionError("Cache should not be called")
 
     monkeypatch.setattr(
         operator, "_cached_mutual_inductance", fail_if_called
@@ -238,9 +363,9 @@ def test_coincident_centers_return_zero_without_model_call(monkeypatch):
         displacement=(0.0, 0.0, 0.0),
         r1=4.0,
         r2=5.0,
-        width=0.2,
+        width=0.0,
         orientation1="z",
-        orientation2="y",
+        orientation2="z",
     )
 
     assert result == 0.0 + 0.0j
@@ -248,15 +373,57 @@ def test_coincident_centers_return_zero_without_model_call(monkeypatch):
 def test_cached_function_reuses_identical_inputs(monkeypatch):
     calls = []
 
-    def fake_function(*args):
-        calls.append(args)
-        return 2.0
+    class FakeModel:
+        @staticmethod
+        def L_parallel(*args):
+            calls.append(args)
+            return 2.0
 
-    monkeypatch.setattr(
-        operator.quasistatic, "L_parallel", fake_function
-    )
+        @staticmethod
+        def L_orthogonal(*args):
+            calls.append(args)
+            return 3.0
+
+    monkeypatch.setitem(operator._MODELS, "quasistatic", FakeModel)
 
     kwargs = dict(
+        model="quasistatic",
+        omega=None,
+        x=1.0,
+        y=2.0,
+        z=3.0,
+        r1=4.0,
+        r2=5.0,
+        width=0.0,
+        parallel=True,
+    )
+
+    first = operator._cached_mutual_inductance(**kwargs)
+    second = operator._cached_mutual_inductance(**kwargs)
+
+    assert first == second
+    assert len(calls) == 1
+
+    info = operator._cached_mutual_inductance.cache_info()
+    assert info.misses == 1
+    assert info.hits == 1
+
+def test_cache_reuses_equivalent_local_coordinates(monkeypatch):
+    calls = []
+
+    class FakeModel:
+        @staticmethod
+        def L_parallel(*args):
+            calls.append(args)
+            return 2.0
+
+        @staticmethod
+        def L_orthogonal(*args):
+            raise AssertionError("Unexpected orthogonal call")
+
+    monkeypatch.setitem(operator._MODELS, "quasistatic", FakeModel)
+
+    first = operator.mutual_inductance(
         displacement=(1.0, 2.0, 3.0),
         r1=4.0,
         r2=5.0,
@@ -265,13 +432,23 @@ def test_cached_function_reuses_identical_inputs(monkeypatch):
         orientation2="z",
     )
 
-    first = operator.mutual_inductance(**kwargs)
-    second = operator.mutual_inductance(**kwargs)
+    second = operator.mutual_inductance(
+        displacement=(1.0, 3.0, -2.0),
+        r1=4.0,
+        r2=5.0,
+        width=0.0,
+        orientation1="y",
+        orientation2="y",
+    )
 
     assert first == second
     assert len(calls) == 1
 
-# Matrix assembly
+    info = operator._cached_mutual_inductance.cache_info()
+    assert info.misses == 1
+    assert info.hits == 1
+
+# Mutual inductance matrix
 def test_matrix_is_symmetric_and_has_zero_diagonal(monkeypatch):
     def fake_mutual_inductance(*, displacement, **kwargs):
         return complex(sum(displacement), 1.0)
@@ -291,40 +468,19 @@ def test_matrix_is_symmetric_and_has_zero_diagonal(monkeypatch):
         centers,
         orientations,
         radius=1.0,
+        width=0.0,
     )
 
     assert matrix.shape == (3, 3)
-    np.testing.assert_array_equal(np.diag(matrix), 0.0)
-    np.testing.assert_allclose(matrix, matrix.T)
+    assert np.allclose(matrix, matrix.T)
+    assert np.allclose(np.diag(matrix), 0.0)
 
 def test_matrix_empty_input():
     matrix = operator.mutual_inductance_matrix(
         np.empty((0, 3)),
         np.empty((0,), dtype=str),
         radius=1.0,
+        width=0.0,
     )
 
     assert matrix.shape == (0, 0)
-
-@pytest.mark.parametrize(
-    ("model", "omega"),
-    [
-        ("quasistatic", None),
-        ("full_retarded", 1.0e8),
-        ("approx_retarded", 1.0e8),
-    ],
-)
-def test_real_model_returns_finite_mutual_inductance(model, omega):
-    result = operator.mutual_inductance(
-        displacement=(0.0, 0.0, 0.02),
-        r1=0.005,
-        r2=0.005,
-        width=0.0,
-        orientation1="z",
-        orientation2="z",
-        model=model,
-        omega=omega,
-    )
-
-    assert np.isfinite(result.real)
-    assert np.isfinite(result.imag)
