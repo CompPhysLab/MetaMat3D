@@ -89,8 +89,6 @@ def _mutual_inductance(model: CouplingModel, omega: float | None, x: float, y: f
         args = (x, y, z)
     else:
         args = (omega, x, y, z)
-    if model == "quasistatic":
-        args = (x, y, z)
     if r1 == r2 and width:
         w = width * gamma
         R = r1 + w / 2
