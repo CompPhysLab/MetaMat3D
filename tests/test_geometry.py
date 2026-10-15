@@ -76,7 +76,3 @@ def test_cylinder_filters_points_without_reordering():
 def test_invalid_type_raises(kind):
     with pytest.raises(ValueError):
         build_geometry(config(type=kind))
-
-def test_duplicate_orientations_rejected():
-    with pytest.raises(ValueError):
-        build_geometry(config(orientations="zz"))

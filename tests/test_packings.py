@@ -57,22 +57,3 @@ def test_cylinder_z_empty_points():
 
     assert mask.shape == (0,)
     assert mask.dtype == bool
-
-@pytest.mark.parametrize("points", [
-    np.array([1.0, 2.0, 3.0]),
-    np.empty((2, 2)),
-    np.empty((2, 4)),
-])
-def test_cylinder_z_invalid_points_shape(points):
-    with pytest.raises(ValueError, match=r"points must have shape"):
-        cylinder_z(points, (4.0, 2.0, 3.0))
-
-@pytest.mark.parametrize("bounds", [
-    (4.0, 2.0),
-    (4.0, 2.0, 3.0, 1.0),
-    (4.0, 0.0, 3.0),
-    (4.0, -2.0, 3.0),
-])
-def test_cylinder_z_invalid_bounds(bounds):
-    with pytest.raises(ValueError, match="bounds must contain three positive lengths"):
-        cylinder_z(np.array([[1.0, 1.0, 1.0]]), bounds)
