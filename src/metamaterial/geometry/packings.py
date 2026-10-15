@@ -22,8 +22,6 @@ def rectangle(points: FloatArray, bounds: tuple[float, float, float]) -> BoolArr
         Boolean array of shape (N,) indicating which points are inside the box.
     """
     points = np.asarray(points, dtype=float)
-    if points.ndim != 2 or points.shape[1] != 3:
-        raise ValueError("points must have shape (N, 3)")
     return np.ones(points.shape[0], dtype=bool)
 
 def ellipse(points: FloatArray, bounds: tuple[float, float, float], *, tol: float = 1e-12,) -> BoolArray:
@@ -44,12 +42,7 @@ def ellipse(points: FloatArray, bounds: tuple[float, float, float], *, tol: floa
         Boolean array of shape (N,) indicating which points are inside the ellipsoid
     """
     points = np.asarray(points, dtype=float)
-    if points.ndim != 2 or points.shape[1] != 3:
-        raise ValueError("points must have shape (N, 3)")
-
     lengths = np.asarray(bounds, dtype=float)
-    if lengths.shape != (3,) or np.any(lengths <= 0):
-        raise ValueError("bounds must contain three positive lengths")
 
     center = lengths / 2.0
     normalized = (points - center) / center
@@ -73,12 +66,7 @@ def cylinder_z(points: FloatArray, bounds: tuple[float, float, float], *, tol: f
         Boolean array of shape (N,) indicating which points are inside the cylinder
     """
     points = np.asarray(points, dtype=float)
-    if points.ndim != 2 or points.shape[1] != 3:
-        raise ValueError("points must have shape (N, 3)")
-
     lengths = np.asarray(bounds, dtype=float)
-    if lengths.shape != (3,) or np.any(lengths <= 0):
-        raise ValueError("bounds must contain three positive lengths")
 
     center_xy = lengths[:2] / 2.0
     xy_points = points[:, :2]
@@ -102,7 +90,7 @@ def get_packing_rule(name: str) -> Callable[..., BoolArray]:
     try:
         return PACKING_RULES[name]
     except (KeyError, AttributeError) as exc:
-        supported = ", ".join(sorted(PACKING_RULES))
+        supported = ", ".join(PACKING_RULES)
         raise ValueError(
             f"Unsupported packing {name!r}. Supported packings: {supported}"
         ) from exc

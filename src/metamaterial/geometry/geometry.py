@@ -101,19 +101,6 @@ def build_geometry(config) -> Geometry:
     packing = str(config.packing)
     orientations = str(config.orientations)
 
-    if kind not in _ALLOWED_TYPES:
-        raise ValueError(f"type must be one of {sorted(_ALLOWED_TYPES)}")
-    if not orientations:
-        raise ValueError("orientations cannot be empty")
-    if any(o not in _ALLOWED_ORIENTATIONS for o in orientations):
-        raise ValueError("orientations may contain only 'z', 'y', and 'x'")
-    if len(set(orientations)) != len(orientations):
-        raise ValueError("orientations cannot contain duplicates")
-    if min(nx, ny, nz) <= 0:
-        raise ValueError("Nx, Ny, and Nz must be positive integers")
-    if min(dx, dy, dz) <= 0:
-        raise ValueError("Dx, Dy, and Dz must be positive")
-
     counts = (nx, ny, nz)
     spacings = (dx, dy, dz)
     packing_rule = get_packing_rule(packing)
@@ -124,7 +111,6 @@ def build_geometry(config) -> Geometry:
 
     for orientation in orientations:
         coord_axes, index_axes = _coordinates_for_orientation(orientation, kind, counts)
-
         # meshgrid(indexing='ij') stores axes as (x, y, z).
         # Fortran-order flattening makes x/i vary fastest, then y/j, then z/k.
         x, y, z = np.meshgrid(*coord_axes, indexing="ij")
