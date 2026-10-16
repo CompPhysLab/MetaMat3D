@@ -3,6 +3,7 @@ import numpy.typing as npt
 from typing import Literal
 FloatArray = npt.NDArray[np.float64]
 ComplexArray = npt.NDArray[np.complex128]
+StrArray = npt.NDArray[np.str_]
 
 c = 3e8
 mu_0 = 4.0 * np.pi * 1e-7
@@ -24,7 +25,7 @@ def mag_moment(currents: ComplexArray, radius: float, normals: FloatArray) -> Co
         sum += currents[i] * (np.pi * radius**2) * normals[i]
     return sum
 
-def polarizability(currents: ComplexArray, radius: float, normals: FloatArray, H_0: float, H_direction: FloatArray) -> ComplexArray:
+def polarizability(currents: ComplexArray, radius: float, normals: FloatArray, H_0: float, H_direction: FloatArray) -> complex:
     '''Calculate the polarizability of the sample
     
     Parameters

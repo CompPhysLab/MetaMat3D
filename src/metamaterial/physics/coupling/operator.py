@@ -9,6 +9,8 @@ gamma = 0.7 #gamma-factor
 CouplingModel = Literal["quasistatic", "full_retarded", "approx_retarded"]
 Orientation = Literal["x", "y", "z"]
 FloatArray = NDArray[np.float64]
+ComplexArray = NDArray[np.complex128]
+StrArray = NDArray[np.str_]
 
 _MODELS = {
     "quasistatic": quasistatic,
@@ -143,7 +145,7 @@ def mutual_inductance(*, displacement: tuple[float, float, float], r1: float, r2
     mutual_inductance = _cached_mutual_inductance(model, None if omega is None else float(omega), x, y, z, r1, r2, width, parallel)
     return complex(mu_0 * mutual_inductance)
 
-def mutual_inductance_matrix(centers: FloatArray, orientations: NDArray, *, radius: float, width: float, model: CouplingModel = "quasistatic", omega: float | None = None) -> NDArray[np.complex128]:
+def mutual_inductance_matrix(centers: FloatArray, orientations: StrArray, *, radius: float, width: float, model: CouplingModel = "quasistatic", omega: float | None = None) -> ComplexArray:
     """Build the symmetric mutual-inductance matrix
 
     Parameters

@@ -1,10 +1,10 @@
 """Configuration for a single metamaterial simulation."""
 
 from dataclasses import asdict, dataclass
-from math import sqrt
 from typing import Any
 import numpy as np
 import numpy.typing as npt
+FloatArray = npt.NDArray[np.float64]
 
 Vector3 = tuple[float, float, float]
 
@@ -46,14 +46,14 @@ class SimulationConfig:
     k_direction: Vector3 | None = None
 
     # Frequency grid
-    frequencies: npt.NDArray[np.float64] | None = None
+    omegas: FloatArray | None = None
 
     # Linear-system solver
     solver: str = ""
 
     # Output options
     save_currents: bool = True
-    save_polarization: bool = True
+    save_polarizability: bool = True
     save_extinction_cross_section: bool = True
 
     def __post_init__(self) -> None:
@@ -67,7 +67,7 @@ class SimulationConfig:
         self._validate_geometry()
         self._validate_interaction_model()
         self._validate_excitation()
-        self._validate_frequencies()
+        self._validate_omegas()
         self._validate_solver()
         self._validate_output_options()
 
@@ -195,7 +195,7 @@ class SimulationConfig:
         if not all(np.isfinite(component) for component in values):
             raise ValueError(f"{name} components must be finite")
 
-        norm = sqrt(sum(component**2 for component in values))
+        norm = np.sqrt(sum(component**2 for component in values))
 
         if norm == 0:
             raise ValueError(f"{name} must not be a zero vector")
@@ -248,32 +248,32 @@ class SimulationConfig:
         model = self.interaction_model
         return model != "quasistatic"
 
-    def _validate_frequencies(self) -> None:
-        if self.frequencies is None:
+    def _validate_omegas(self) -> None:
+        if self.omegas is None:
             raise ValueError("frequencies must be provided")
 
-        frequencies = np.asarray(self.frequencies, dtype=np.float64)
+        omegas = np.asarray(self.omegas, dtype=np.float64)
 
-        if frequencies.ndim != 1:
+        if omegas.ndim != 1:
             raise ValueError("frequencies must be a one-dimensional array")
 
-        if frequencies.size == 0:
+        if omegas.size == 0:
             raise ValueError("frequencies must not be empty")
 
-        if not np.all(np.isfinite(frequencies)) or np.any(frequencies <= 0):
+        if not np.all(np.isfinite(omegas)) or np.any(omegas <= 0):
             raise ValueError(
                 "All frequencies must be finite and positive"
             )
 
-        if np.any(np.diff(frequencies) <= 0):
+        if np.any(np.diff(omegas) <= 0):
             raise ValueError(
                 "frequencies must be strictly increasing"
             )
 
         # Copy to avoid retaining a reference to the caller's array.
-        frequencies = frequencies.copy()
-        frequencies.setflags(write=False)
-        object.__setattr__(self, "frequencies", frequencies)
+        omegas = omegas.copy()
+        omegas.setflags(write=False)
+        object.__setattr__(self, "omegas", omegas)
 
     def _validate_solver(self) -> None:
         if not isinstance(self.solver, str) or not self.solver.strip():
@@ -286,7 +286,7 @@ class SimulationConfig:
     def _validate_output_options(self) -> None:
         for name in (
             "save_currents",
-            "save_polarization",
+            "save_polarizability",
             "save_extinction_cross_section",
         ):
             if not isinstance(getattr(self, name), bool):
@@ -300,7 +300,7 @@ class SimulationConfig:
         """Return a JSON-serializable dictionary"""
         data = asdict(self)
 
-        if self.frequencies is not None:
-            data["frequencies"] = self.frequencies.tolist()
+        if self.omegas is not None:
+            data["omegas"] = self.omegas.tolist()
 
         return data

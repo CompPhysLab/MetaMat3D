@@ -1,10 +1,10 @@
 """Geometric inclusion rules for ring centers."""
 from collections.abc import Callable
 import numpy as np
-from numpy.typing import NDArray
+import numpy.typing as npt
 
-FloatArray = NDArray[np.float64]
-BoolArray = NDArray[np.bool_]
+FloatArray = npt.NDArray[np.float64]
+BoolArray = npt.NDArray[np.bool_]
 
 def rectangle(points: FloatArray, bounds: tuple[float, float, float]) -> BoolArray:
     """Keep all candidate points in the rectangular bounding box

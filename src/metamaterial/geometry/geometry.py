@@ -147,3 +147,10 @@ def build_geometry(config) -> Geometry:
         orientations=ring_orientations,
         grid_indices=grid_indices,
     )
+
+def orientation_normals(orientations: StrArray) -> FloatArray:
+    """Convert ring orientations to Cartesian unit normals"""
+    normals = np.zeros((orientations.size, 3), dtype=np.float64)
+    for axis, column in (("x", 0), ("y", 1), ("z", 2)):
+        normals[orientations == axis, column] = 1.0
+    return normals
