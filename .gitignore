@@ -12,6 +12,7 @@ __pycache__/
 .idea*
 # Ignore large calculation data, images and testing data
 Code/DATA*
+DATA*
 Code/Images*
 Code/Testing_Debug*
 *__pycache__/
