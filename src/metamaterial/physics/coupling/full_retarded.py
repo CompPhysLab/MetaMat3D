@@ -1,11 +1,10 @@
 ''' Trapezoidal rule: int f(phi)dphi = 2 pi/n * sum f(phi_i), phi_i = 2 pi*i/n, i=0,...,n-1'''
 
 import numpy as np
-from scipy import integrate
 
 c=3e8
 
-def L_parallel(omega:float, dx:float, dy:float, dz:float, r1:float, r2:float, n:int=128) -> complex:
+def L_parallel(omega:float, dx:float, dy:float, dz:float, r1:float, r2:float, n: int=128) -> complex:
     """Calculates mutual inductance between two parallel-oriented rings
 
     Parameters
@@ -37,7 +36,7 @@ def L_parallel(omega:float, dx:float, dy:float, dz:float, r1:float, r2:float, n:
     B = -2*r1*(dx + r2*np.cos(phi2))
     C = -2*r1*(dy + r2*np.sin(phi2))
     arg = A+B*np.cos(phi1)+C*np.sin(phi1)
-    R = np.sqrt(np.max(arg, 0.0))
+    R = np.sqrt(np.maximum(arg, 0.0))
     spr = np.cos(phi2-phi1)
     kernel = spr * np.exp(1j*k*R)/R
     L = kernel.sum() * np.pi * r1 * r2 / n**2
@@ -75,7 +74,7 @@ def L_orthogonal(omega:float, dx:float, dy:float, dz:float, r1:float, r2:float, 
     B = 2*dx*r1
     C = 2*r1*(dy + r2*np.sin(phi2))
     arg = A+B*np.cos(phi1)+C*np.sin(phi1)
-    R = np.sqrt(np.max(arg, 0.0))
+    R = np.sqrt(np.maximum(arg, 0.0))
     spr = np.cos(phi1)*np.cos(phi2)
     kernel = spr * np.exp(1j*k*R)/R
     L = - kernel.sum() * np.pi * r1 * r2 / n**2
