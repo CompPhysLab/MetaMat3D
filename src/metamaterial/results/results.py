@@ -71,4 +71,4 @@ def extinction(currents: ComplexArray, radius: float, normals: FloatArray, cente
         prod1 = normals[i] @ H_direction
         prod2 = k_direction @ centers[i]
         sum += currents[i] * (np.pi * radius**2) * prod1 * np.exp(-1j * omega / c * prod2)
-    return mu_0 * omega / (c * H_0) * np.imag(sum)
+    return omega / (c * H_0) * np.imag(sum)

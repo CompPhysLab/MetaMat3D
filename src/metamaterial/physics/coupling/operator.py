@@ -2,11 +2,15 @@ from functools import lru_cache
 from typing import Literal
 import numpy as np
 from numpy.typing import NDArray
+from dataclasses import dataclass
+from itertools import product
+from scipy.fft import fftn, ifftn, next_fast_len
+from scipy.sparse.linalg import LinearOperator
 from . import approx_retarded, full_retarded, quasistatic
 
 mu_0 = 4 * np.pi * 1e-7
 gamma = 0.7 #gamma-factor
-CouplingModel = Literal["quasistatic", "full_retarded", "approx_retarded"]
+interaction_model = Literal["quasistatic", "full_retarded", "approx_retarded"]
 Orientation = Literal["x", "y", "z"]
 FloatArray = NDArray[np.float64]
 ComplexArray = NDArray[np.complex128]
@@ -61,13 +65,13 @@ def _transform_coordinates(dx: float, dy: float, dz: float, orientation1: Orient
         return False, dy, dz, dx
     return False, dz, dy, dx
 
-def _mutual_inductance(model: CouplingModel, omega: float | None, x: float, y: float, z: float, r1: float, r2: float, parallel: bool, width: float = 0.0) -> complex:
+def _mutual_inductance(model: interaction_model, omega: float | None, x: float, y: float, z: float, r1: float, r2: float, parallel: bool, width: float = 0.0) -> complex:
     """Calculate the mutual inductance
 
     Parameters
     ----------
-    model : CouplingModel
-        coupling model to use for the calculation
+    model : interaction_model
+        interaction model to use for the calculation
     omega : float | None
         angular frequency of the electromagnetic wave (required for non-quasistatic models)
     x, y, z : float
@@ -109,11 +113,11 @@ def _mutual_inductance(model: CouplingModel, omega: float | None, x: float, y: f
     return complex(function(*args, r1, r2))
 
 @lru_cache(maxsize=100_000)
-def _cached_mutual_inductance(model: CouplingModel, omega: float | None, x: float, y: float, z: float, r1: float, r2: float, width: float, parallel: bool) -> complex:
+def _cached_mutual_inductance(model: interaction_model, omega: float | None, x: float, y: float, z: float, r1: float, r2: float, width: float, parallel: bool) -> complex:
     """Cache the resulting mutual inductance for performance with local coordinates"""
     return _mutual_inductance(model, omega, x, y, z, r1, r2, parallel, width)
 
-def mutual_inductance(*, displacement: tuple[float, float, float], r1: float, r2: float, width: float, orientation1: Orientation, orientation2: Orientation, model: CouplingModel = "quasistatic", omega: float | None = None) -> complex:
+def mutual_inductance(*, displacement: tuple[float, float, float], r1: float, r2: float, width: float, orientation1: Orientation, orientation2: Orientation, model: interaction_model = "quasistatic", omega: float | None = None) -> complex:
     """Calculate mutual inductance M12
 
     Parameters
@@ -126,8 +130,8 @@ def mutual_inductance(*, displacement: tuple[float, float, float], r1: float, r2
         width of the strip
     orientation1, orientation2 : Orientation
         orientations of the two rings, each one of 'x', 'y', 'z'
-    model : CouplingModel, optional
-        coupling model to use for the calculation (default: 'quasistatic')
+    model : interaction_model, optional
+        interaction model to use for the calculation (default: 'quasistatic')
     omega : float | None, optional
         angular frequency of the electromagnetic wave (required for non-quasistatic models)
 
@@ -145,7 +149,7 @@ def mutual_inductance(*, displacement: tuple[float, float, float], r1: float, r2
     mutual_inductance = _cached_mutual_inductance(model, None if omega is None else float(omega), x, y, z, r1, r2, width, parallel)
     return complex(mu_0 * mutual_inductance)
 
-def mutual_inductance_matrix(centers: FloatArray, orientations: StrArray, *, radius: float, width: float, model: CouplingModel = "quasistatic", omega: float | None = None) -> ComplexArray:
+def mutual_inductance_matrix(centers: FloatArray, orientations: StrArray, *, radius: float, width: float, model: interaction_model = "quasistatic", omega: float | None = None) -> ComplexArray:
     """Build the symmetric mutual-inductance matrix
 
     Parameters
@@ -158,8 +162,8 @@ def mutual_inductance_matrix(centers: FloatArray, orientations: StrArray, *, rad
         common mean ring radius
     width: float
         common width of the strip
-    model: CouplingModel
-        coupling model
+    model: interaction_model
+        interaction model
     omega: float | None
         angular frequency; required by non-quasistatic models
 
@@ -184,3 +188,4 @@ def mutual_inductance_matrix(centers: FloatArray, orientations: StrArray, *, rad
 def clear_cache() -> None:
     """Clear the operator's mutual-inductance cache"""
     _cached_mutual_inductance.cache_clear()
+

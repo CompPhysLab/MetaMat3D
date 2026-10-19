@@ -35,14 +35,14 @@ class Geometry:
         if self.grid_indices.shape != (n, 3):
             raise ValueError("grid_indices must have shape (N, 3)")
 
-def _coordinates_for_orientation(orientation: str, kind: str, counts: tuple[int, int, int],) -> tuple[tuple[NDArray[np.float64], ...], tuple[NDArray[np.int64], ...]]:
+def _coordinates_for_orientation(orientation: str, type: str, counts: tuple[int, int, int],) -> tuple[tuple[NDArray[np.float64], ...], tuple[NDArray[np.int64], ...]]:
     """Build x/y/z coordinate and index axes for one ring orientation
     
     Parameters
     ----------
     orientation : str
         Ring orientation ('z', 'y', or 'x')
-    kind : str
+    type : str
         Meta-atom type ('border', 'open', or 'center')
     counts : tuple[int, int, int]
         Number of meta-atoms along each axis (Nx, Ny, Nz)
@@ -59,17 +59,17 @@ def _coordinates_for_orientation(orientation: str, kind: str, counts: tuple[int,
     for axis in range(3):
         count = counts[axis]
 
-        if axis != normal_axis or kind == "center":
+        if axis != normal_axis or type == "center":
             indices = np.arange(count, dtype=np.int64)
             coords = (indices.astype(float) + 0.5)
-        elif kind == "border":
+        elif type == "border":
             indices = np.arange(count + 1, dtype=np.int64)
             coords = indices.astype(float)
-        elif kind == "open":
+        elif type == "open":
             indices = np.arange(1, count, dtype=np.int64)
             coords = indices.astype(float)
         else:
-            raise ValueError(f"Unsupported type {kind!r}")
+            raise ValueError(f"Unsupported type {type!r}")
 
         coord_axes.append(coords)
         index_axes.append(indices)
@@ -97,7 +97,7 @@ def build_geometry(config) -> Geometry:
     """
     dx, dy, dz = float(config.Dx), float(config.Dy), float(config.Dz)
     nx, ny, nz = int(config.Nx), int(config.Ny), int(config.Nz)
-    kind = str(config.type)
+    type = str(config.type)
     packing = str(config.packing)
     orientations = str(config.orientations)
 
@@ -110,7 +110,7 @@ def build_geometry(config) -> Geometry:
     index_blocks = []
 
     for orientation in orientations:
-        coord_axes, index_axes = _coordinates_for_orientation(orientation, kind, counts)
+        coord_axes, index_axes = _coordinates_for_orientation(orientation, type, counts)
         # meshgrid(indexing='ij') stores axes as (x, y, z).
         # Fortran-order flattening makes x/i vary fastest, then y/j, then z/k.
         x, y, z = np.meshgrid(*coord_axes, indexing="ij")

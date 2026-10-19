@@ -3,14 +3,14 @@
 import numpy as np
 import numpy.typing as npt
 from typing import Literal
-CouplingModel = Literal["quasistatic", "full_retarded", "approx_retarded"]
+interaction_model = Literal["quasistatic", "full_retarded", "approx_retarded"]
 FloatArray = npt.NDArray[np.float64]
 ComplexArray = npt.NDArray[np.complex128]
 
 mu_0 = 4.0 * np.pi * 1e-7
 c = 3e8
 
-def build_rhs(centers: FloatArray, normals: FloatArray, radius: float, H_0: float, H_direction: FloatArray, *, model: CouplingModel = "quasistatic", k_direction: FloatArray | None = None, omega: float | None = None) -> ComplexArray:
+def build_rhs(centers: FloatArray, normals: FloatArray, radius: float, H_0: float, H_direction: FloatArray, *, model: interaction_model = "quasistatic", k_direction: FloatArray | None = None, omega: float | None = None) -> ComplexArray:
     """Build the excitation vector for every configured frequency
 
     Parameters
@@ -25,8 +25,8 @@ def build_rhs(centers: FloatArray, normals: FloatArray, radius: float, H_0: floa
         amplitude of the incident magnetic field
     H_direction: FloatArray
         direction of the incident magnetic field, shape (3,)
-    model: CouplingModel
-        coupling model to use
+    model: interaction_model
+        interaction model to use
     k_direction: FloatArray | None
         direction of the wave vector, shape (3,), required for non-quasistatic models
     omega: float | None

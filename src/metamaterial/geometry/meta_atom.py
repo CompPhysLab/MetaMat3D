@@ -17,7 +17,7 @@ class MetaAtom:
     orientations:
         String containing unique allowed ring orientations: z, y, x
     type:
-        Meta-atom geometry: 'border', 'open', or 'center'
+        Meta-atom type: 'border', 'open', or 'center'
     """
 
     Dx: float

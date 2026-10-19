@@ -14,7 +14,7 @@ def make_inputs(
     omega=2.0 * np.pi * 1e8,
     radius=0.1,
     centers=None,
-    orientations=None,
+    normals=None,
 ):
     if centers is None:
         centers = [
@@ -23,12 +23,16 @@ def make_inputs(
             [0.0, 1.0, 0.0],
         ]
 
-    if orientations is None:
-        orientations = ["z", "x", "y"]
+    if normals is None:
+        normals = [
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ]
 
     return {
         "centers": np.asarray(centers, dtype=np.float64),
-        "orientations": np.asarray(orientations),
+        "normals": np.asarray(normals),
         "radius": radius,
         "H_0": H_0,
         "H_direction": np.asarray(H_direction, dtype=np.float64),
@@ -54,7 +58,11 @@ def test_quasistatic_flux_depends_on_ring_orientation():
     inputs = make_inputs(
         H_0=2.0,
         H_direction=(0.0, 0.0, 1.0),
-        orientations=["z", "x", "y"],
+        normals = [
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+                ],
     )
 
     rhs = build_rhs(**inputs)
@@ -70,7 +78,11 @@ def test_quasistatic_flux_uses_projection_of_H_direction():
     inputs = make_inputs(
         H_0=3.0,
         H_direction=(1.0 / np.sqrt(3.0),) * 3,
-        orientations=["x", "y", "z"],
+        normals = [
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+                ],
         centers=[
             [0.0, 0.0, 0.0],
             [0.0, 0.0, 0.0],
@@ -96,7 +108,10 @@ def test_zero_field_produces_zero_rhs():
             [0.0, 0.0, 0.0],
             [1.0, 2.0, 3.0],
         ],
-        orientations=["z", "x"],
+        normals = [
+            [0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0],
+                ],
     )
 
     rhs = build_rhs(**inputs)
@@ -118,7 +133,10 @@ def test_non_quasistatic_mode_applies_propagation_phase():
             [0.0, 0.0, 0.0],
             [0.25, 0.0, 0.0],
         ],
-        orientations=["z", "z"],
+        normals = [
+            [0.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0],
+                ],
     )
 
     rhs = build_rhs(**inputs)
@@ -138,7 +156,9 @@ def test_non_quasistatic_phase_is_one_at_origin():
         k_direction=(1.0, 0.0, 0.0),
         omega=2.0 * np.pi * 1e8,
         centers=[[0.0, 0.0, 0.0]],
-        orientations=["z"],
+        normals = [
+            [0.0, 0.0, 1.0],
+                ],
     )
 
     rhs = build_rhs(**inputs)
@@ -158,7 +178,11 @@ def test_ring_order_is_preserved():
             [1.0, 0.0, 0.0],
             [2.0, 0.0, 0.0],
         ],
-        orientations=["x", "z", "y"],
+        normals = [
+            [1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0],
+                ],
     )
 
     rhs = build_rhs(**inputs)
@@ -170,7 +194,7 @@ def test_ring_order_is_preserved():
 def test_invalid_orientation_produces_zero_projection():
     inputs = make_inputs(
         centers=[[0.0, 0.0, 0.0]],
-        orientations=["invalid"],
+        normals=[[0.0, 0.0, 0.0]], #invalid
     )
 
     rhs = build_rhs(**inputs)

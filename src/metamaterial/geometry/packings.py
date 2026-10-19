@@ -6,15 +6,15 @@ import numpy.typing as npt
 FloatArray = npt.NDArray[np.float64]
 BoolArray = npt.NDArray[np.bool_]
 
-def rectangle(points: FloatArray, bounds: tuple[float, float, float]) -> BoolArray:
+def rectangle(points: FloatArray, counts: tuple[float, float, float]) -> BoolArray:
     """Keep all candidate points in the rectangular bounding box
 
     Parameters
     ----------
     points : FloatArray
         Array of shape (N, 3)
-    bounds : tuple[float, float, float]
-        The bounding box dimensions (Lx, Ly, Lz)
+    counts : tuple[float, float, float]
+        Number of meta-atoms along each axis (Nx, Ny, Nz)
 
     Returns
     -------
@@ -24,15 +24,15 @@ def rectangle(points: FloatArray, bounds: tuple[float, float, float]) -> BoolArr
     points = np.asarray(points, dtype=float)
     return np.ones(points.shape[0], dtype=bool)
 
-def ellipse(points: FloatArray, bounds: tuple[float, float, float], *, tol: float = 1e-12,) -> BoolArray:
+def ellipse(points: FloatArray, counts: tuple[float, float, float], *, tol: float = 1e-12,) -> BoolArray:
     """Keep points inside an ellipsoid centered at (Lx/2, Ly/2, Lz/2)
 
     Parameters
     ----------
     points : FloatArray
         Array of shape (N, 3)
-    bounds : tuple[float, float, float]
-        The bounding box dimensions (Lx, Ly, Lz)
+    counts : tuple[float, float, float]
+        Number of meta-atoms along each axis (Nx, Ny, Nz)
     tol : float, optional
         Numerical tolerance for inclusion, by default 1e-12
     
@@ -42,21 +42,21 @@ def ellipse(points: FloatArray, bounds: tuple[float, float, float], *, tol: floa
         Boolean array of shape (N,) indicating which points are inside the ellipsoid
     """
     points = np.asarray(points, dtype=float)
-    lengths = np.asarray(bounds, dtype=float)
+    lengths = np.asarray(counts, dtype=float)
 
     center = lengths / 2.0
     normalized = (points - center) / center
     return np.sum(normalized**2, axis=1) <= 1.0 + tol
 
-def cylinder_z(points: FloatArray, bounds: tuple[float, float, float], *, tol: float = 1e-12,) -> BoolArray:
+def cylinder_z(points: FloatArray, counts: tuple[float, float, float], *, tol: float = 1e-12,) -> BoolArray:
     """Keep points inside a cylinder along the z-axis centered at (Lx/2, Ly/2) with height Lz
 
     Parameters
     ----------
     points : FloatArray
         Array of shape (N, 3)
-    bounds : tuple[float, float, float]
-        The bounding box dimensions (Lx, Ly, Lz)
+    counts : tuple[float, float, float]
+        Number of meta-atoms along each axis (Nx, Ny, Nz)
     tol : float, optional
         Numerical tolerance for inclusion, by default 1e-12
     
@@ -66,7 +66,7 @@ def cylinder_z(points: FloatArray, bounds: tuple[float, float, float], *, tol: f
         Boolean array of shape (N,) indicating which points are inside the cylinder
     """
     points = np.asarray(points, dtype=float)
-    lengths = np.asarray(bounds, dtype=float)
+    lengths = np.asarray(counts, dtype=float)
 
     center_xy = lengths[:2] / 2.0
     xy_points = points[:, :2]
