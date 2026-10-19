@@ -34,7 +34,7 @@ def L_parallel(dx:float, dy:float, dz:float, r1:float, r2:float) -> float:
         kappa = np.sqrt(kappa_sq)
         A = 1/(2*np.pi)*np.sqrt(r_1/dp) * ((2/kappa - kappa) * K(kappa_sq) - 2 * E(kappa_sq)/kappa)
         return A * r_2 * (r_2 + db * np.cos(alpha))/dp
-    L, err = integrate.quad(dl, 0, 2 * np.pi, args= (dx, dy, dz, r1, r2))
+    L, err = integrate.quad(dl, 0, 2 * np.pi, args= (dx, dy, dz, r1, r2), epsabs=1e-18, epsrel=1e-12, limit=300)
     return L
 
 def L_orthogonal(dx:float, dy:float ,dz:float, r1:float, r2:float) -> float:
@@ -64,5 +64,5 @@ def L_orthogonal(dx:float, dy:float ,dz:float, r1:float, r2:float) -> float:
         kappa = np.sqrt(kappa_sq)
         A = 1 / (2 * np.pi) * np.sqrt(r_1 / (dp)) * ((2 / kappa - kappa) * K(kappa_sq) - 2 * E(kappa_sq) / kappa)
         return A * r_2 * dy * np.cos(alpha) / (dp)
-    L, err = integrate.quad(dl, 0, 2 * np.pi, args=(dx, dy, dz, r1, r2))
+    L, err = integrate.quad(dl, 0.0, 2.0 * np.pi, args=(dx, dy, dz, r1, r2), epsabs=1e-18, epsrel=1e-12, limit=300)
     return L

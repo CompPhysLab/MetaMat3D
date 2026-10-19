@@ -12,16 +12,18 @@ ComplexArray = npt.NDArray[np.complex128]
 
 def solve_system(config: SimulationConfig, geometry: Geometry) -> ComplexArray:
     '''Solve the linear system for the given configuration and geometry
+
     Parameters
     ----------
     config : SimulationConfig
         simulation configuration
     geometry : Geometry
         geometry of the system
+
     Returns
     -------
     currents : np.ndarray
-        currents in the system
+        Complex currents, shape (N, n_omegas)
     '''
     omegas = np.asarray(config.omegas, dtype=np.float64)
     normals = orientation_normals(geometry.orientations)
