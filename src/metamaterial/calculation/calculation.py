@@ -4,10 +4,11 @@ import os
 import json
 from src.metamaterial.config import SimulationConfig
 from src.metamaterial.geometry import build_geometry, orientation_normals
-from src.metamaterial.solvers import straight
+from src.metamaterial.solvers import straight, fast
 from src.metamaterial.results import results
 _SOLVERS = {
     "straight": straight,
+    "fast": fast,
 }
 FloatArray = npt.NDArray[np.float64]
 ComplexArray = npt.NDArray[np.complex128]

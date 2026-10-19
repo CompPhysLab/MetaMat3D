@@ -29,6 +29,7 @@ def solve_system(config: SimulationConfig, geometry: Geometry) -> ComplexArray:
     n_rings = len(geometry.centers)
     currents = np.zeros((n_rings, len(omegas)), dtype=np.complex128)
 
+    x0 = None
     M = None
     if config.interaction_model == "quasistatic":
         M = build_fft_operator(geometry.grid_indices, geometry.orientations, counts=(config.Nx, config.Ny, config.Nz), spacing=(config.Dx, config.Dy, config.Dz), type=config.type, radius=config.radius, width=config.width, model=config.interaction_model, omega=None)
@@ -44,7 +45,7 @@ def solve_system(config: SimulationConfig, geometry: Geometry) -> ComplexArray:
             return M_0 * vector + A @ vector
         
         system = LinearOperator(shape=(n_rings, n_rings), matvec=matvec, dtype=np.complex128)
-        solution, info = gmres(system, rhs, rtol=1e-10, atol=0.0)
+        solution, info = gmres(system, rhs, x0=x0, rtol=1e-10, atol=0.0)
         if info != 0:
             if info > 0:
                 raise RuntimeError(
@@ -54,6 +55,6 @@ def solve_system(config: SimulationConfig, geometry: Geometry) -> ComplexArray:
             raise RuntimeError(
                 f"GMRES failed for omega={omega}, info={info}."
             )
-
+        x0 = solution
         currents[:, i] = solution
     return currents
