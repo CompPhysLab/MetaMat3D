@@ -70,9 +70,9 @@ def L_orthogonal(omega:float, dx:float, dy:float, dz:float, r1:float, r2:float, 
     k = omega/c
     phi = 2 * np.pi * np.arange(n)/n
     phi1, phi2 = np.meshgrid(phi, phi, indexing='ij')
-    A = dz**2 + dx**2 + dy**2 + 2*r2*(dy*np.sin(phi2) - dz*np.cos(phi2)) + r1**2 + r2**2
-    B = 2*dx*r1
-    C = 2*r1*(dy + r2*np.sin(phi2))
+    A = dz**2+dx**2+dy**2 - 2*r2*(dx*np.sin(phi2)+dz*np.cos(phi2)) + r1**2+r2**2
+    B = -2*dy*r1
+    C = 2*r1*(r2*np.sin(phi2)-dx)
     arg = A+B*np.cos(phi1)+C*np.sin(phi1)
     R = np.sqrt(np.maximum(arg, 0.0))
     spr = np.cos(phi1)*np.cos(phi2)
