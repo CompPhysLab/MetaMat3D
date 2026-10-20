@@ -6,10 +6,11 @@ from src.metamaterial.config import SimulationConfig
 from src.metamaterial.geometry import Geometry, orientation_normals
 from src.metamaterial.physics import self_inductance, build_rhs
 from src.metamaterial.physics.coupling.operator import build_fft_operator
+from src.metamaterial.solvers.preconditioners import build_orientation_block_preconditioner
 ComplexArray = npt.NDArray[np.complex128]
 
 def solve_system(config: SimulationConfig, geometry: Geometry) -> ComplexArray:
-    """Solve the linear system using the FFT-based mutual-inductance operator
+    """Solves the linear system using the FFT-based mutual-inductance operator
 
     Parameters
     ----------

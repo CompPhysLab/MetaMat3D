@@ -14,7 +14,7 @@ FloatArray = npt.NDArray[np.float64]
 ComplexArray = npt.NDArray[np.complex128]
 
 def calculate(config: SimulationConfig) -> None:
-    '''Calculate the metamaterial response for a given configuration and save the results to disk'''
+    '''Calculates the metamaterial response for a given configuration and save the results to disk'''
     print(f"Calculating system {config.name}")
     geometry = build_geometry(config)
     #make directory for results in DATA

@@ -11,26 +11,26 @@ mu_0 = 4.0 * np.pi * 1e-7
 c = 3e8
 
 def build_rhs(centers: FloatArray, normals: FloatArray, radius: float, H_0: float, H_direction: FloatArray, *, model: interaction_model = "quasistatic", k_direction: FloatArray | None = None, omega: float | None = None) -> ComplexArray:
-    """Build the excitation vector for every configured frequency
+    """Builds the excitation vector for every configured frequency
 
     Parameters
     ----------
     centers: FloatArray
-        ring centers, shape (N, 3)
+        Ring centers, shape (N, 3)
     normals: FloatArray
-        ring normals, shape (N, 3)
+        Ring normals, shape (N, 3)
     radius: float
-        common mean ring radius
+        Common mean ring radius
     H_0: float
-        amplitude of the incident magnetic field
+        Amplitude of the incident magnetic field
     H_direction: FloatArray
-        direction of the incident magnetic field, shape (3,)
+        Direction of the incident magnetic field, shape (3,)
     model: interaction_model
-        interaction model to use
+        Interaction model to use
     k_direction: FloatArray | None
-        direction of the wave vector, shape (3,), required for non-quasistatic models
+        Direction of the wave vector, shape (3,), required for non-quasistatic models
     omega: float | None
-        angular frequency, required for non-quasistatic models
+        Angular frequency, required for non-quasistatic models
 
     Returns
     -------

@@ -9,22 +9,22 @@ def L_parallel(omega:float, dx:float, dy:float, dz:float, r1:float, r2:float) ->
     Parameters
     ----------
     omega : float
-        frequency of the electromagnetic wave
+        Angular frequency
     dx : float
-        distance between the centers of the rings along the x-axis
+        Distance between the centers of the rings along the x-axis
     dy : float
-        distance between the centers of the rings along the y-axis
+        Distance between the centers of the rings along the y-axis
     dz : float
-        distance between the centers of the rings along the z-axis
+        Distance between the centers of the rings along the z-axis
     r1 : float
-        radius of the first ring
+        Radius of the first ring
     r2 : float
-        radius of the second ring
+        Radius of the second ring
 
     Returns
     -------
     complex
-        mutual inductance between two parallel-oriented rings
+        Mutual inductance between two parallel-oriented rings
     """
     k = omega/c
     def internal(phi1, phi2):
@@ -56,22 +56,22 @@ def L_orthogonal(omega:float, dx:float, dy:float, dz:float, r1:float, r2:float) 
     Parameters
     ----------
     omega : float
-        frequency of the electromagnetic wave
+        Angular frequency
     dx : float
-        distance between the centers of the rings along the x-axis
+        Distance between the centers of the rings along the x-axis
     dy : float
-        distance between the centers of the rings along the y-axis
+        Distance between the centers of the rings along the y-axis
     dz : float
-        distance between the centers of the rings along the z-axis
+        Distance between the centers of the rings along the z-axis
     r1 : float
-        radius of the first ring
+        Radius of the first ring
     r2 : float
-        radius of the second ring
+        Radius of the second ring
 
     Returns
     -------
     complex
-        mutual inductance between two orthogonal-oriented rings
+        Mutual inductance between two orthogonal-oriented rings
     """
     k = omega/c
     def internal(phi1, phi2):

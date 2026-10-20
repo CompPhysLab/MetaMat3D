@@ -4,12 +4,12 @@ from __future__ import annotations
 import numpy as np
 
 def self_inductance(omega: float, R: float, L: float, C: float) -> complex:
-    """Return the effective self-inductance M(omega)
+    """Returns the effective self-inductance M(omega)
 
     Parameters
     ----------
     omega : float or array-like
-        Angular frequency in rad/s. Must be nonzero
+        Angular frequency, Must be nonzero
     R : float
         Resistance in ohms
     L : float
@@ -28,7 +28,7 @@ def self_inductance(omega: float, R: float, L: float, C: float) -> complex:
     return R / (1j * omega) - L + 1 / (omega**2 * C)
 
 def impedance(omega: float, R: float, L: float, C: float) -> complex:
-    """Return the complex self-impedance Z(omega)
+    """Returns the complex self-impedance Z(omega)
 
     Parameters
     ----------
@@ -52,6 +52,6 @@ def impedance(omega: float, R: float, L: float, C: float) -> complex:
     return R - 1j * omega * L + 1j / (omega * C)
 
 def conductivity(omega: float, R: float, L: float, C: float) -> complex:
-    """Return the complex conductivity sigma(omega) = 1 / Z(omega)"""
+    """Returns the complex conductivity sigma(omega) = 1 / Z(omega)"""
     Z = impedance(omega, R, L, C)
     return 1 / Z

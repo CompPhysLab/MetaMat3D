@@ -24,21 +24,21 @@ _MODELS = {
 }
 
 def _transform_coordinates(dx: float, dy: float, dz: float, orientation1: Orientation, orientation2: Orientation) -> tuple[bool, float, float, float]:
-    """Transform displacement into coordinates expected by the model
+    """Transforms displacement into coordinates expected by the model
 
     Parameters
     ----------
     dx, dy, dz : float
-        displacement coordinates in the global frame
+        Displacement coordinates in the global frame
     orientation1, orientation2 : Orientation
-        orientations of the two rings, each one of 'x', 'y', 'z'
+        Orientations of the two rings, each one of 'x', 'y', 'z'
     
     Returns
     -------
         parallel : bool
-            whether the rings have the same orientation
+            Whether the rings have the same orientation
         x, y, z : float
-            transformed displacement coordinates
+            Transformed displacement coordinates
 
     Notes
     -----
@@ -67,27 +67,27 @@ def _transform_coordinates(dx: float, dy: float, dz: float, orientation1: Orient
     return False, dz, dy, dx
 
 def _mutual_inductance(model: interaction_model, omega: float | None, x: float, y: float, z: float, r1: float, r2: float, parallel: bool, width: float = 0.0) -> complex:
-    """Calculate the mutual inductance
+    """Calculates the mutual inductance
 
     Parameters
     ----------
     model : interaction_model
-        interaction model to use for the calculation
+        Interaction model to use for the calculation
     omega : float | None
-        angular frequency of the electromagnetic wave (required for non-quasistatic models)
+        Angular frequency (required for non-quasistatic models)
     x, y, z : float
         Local coordinates
     r1, r2 : float
-        radii of the two rings
+        Radii of the two rings
     parallel : bool
-        whether the rings are parallel
+        Whether the rings are parallel
     width : float, optional
-        width of the strip, by default 0
+        Width of the strip, by default 0
 
     Returns
     -------
     complex
-        mutual inductance between the two rings
+        Mutual inductance between the two rings
     """
     module = _MODELS[model]
     function_name = "L_parallel" if parallel else "L_orthogonal"
@@ -115,27 +115,27 @@ def _cached_mutual_inductance(model: interaction_model, omega: float | None, x: 
     return _mutual_inductance(model, omega, x, y, z, r1, r2, parallel, width)
 
 def mutual_inductance(*, displacement: tuple[float, float, float], r1: float, r2: float, width: float, orientation1: Orientation, orientation2: Orientation, model: interaction_model = "quasistatic", omega: float | None = None) -> complex:
-    """Calculate mutual inductance M12
+    """Calculates mutual inductance M12
 
     Parameters
     ----------
     displacement : tuple[float, float, float]
-        vector from the center of ring 1 to the center of ring 2
+        Vector from the center of ring 1 to the center of ring 2
     r1, r2 : float
-        radii of the two rings
+        Radii of the two rings
     width : float
-        width of the strip
+        Width of the strip
     orientation1, orientation2 : Orientation
-        orientations of the two rings, each one of 'x', 'y', 'z'
+        Orientations of the two rings, each one of 'x', 'y', 'z'
     model : interaction_model, optional
-        interaction model to use for the calculation (default: 'quasistatic')
+        Interaction model to use for the calculation (default: 'quasistatic')
     omega : float | None, optional
-        angular frequency of the electromagnetic wave (required for non-quasistatic models)
+        Angular frequency; required for non-quasistatic models
 
     Returns
     -------
     complex
-        mutual inductance between the two rings
+        Mutual inductance between the two rings
     """
     
     dx, dy, dz = map(float, displacement)
@@ -147,22 +147,22 @@ def mutual_inductance(*, displacement: tuple[float, float, float], r1: float, r2
     return complex(mu_0 * mutual_inductance)
 
 def mutual_inductance_matrix(centers: FloatArray, orientations: StrArray, *, radius: float, width: float, model: interaction_model = "quasistatic", omega: float | None = None) -> ComplexArray:
-    """Build the symmetric mutual-inductance matrix
+    """Builds the symmetric mutual-inductance matrix
 
     Parameters
     ----------
     centers: FloatArray
-        ring centers, shape (N, 3)
+        Ring centers, shape (N, 3)
     orientations: NDArray
-        ring orientations, shape (N,), containing 'x', 'y', 'z'
+        Ring orientations, shape (N,), containing 'x', 'y', 'z'
     radius: float
-        common mean ring radius
+        Common mean ring radius
     width: float
-        common width of the strip
+        Common width of the strip
     model: interaction_model
-        interaction model
+        Interaction model
     omega: float | None
-        angular frequency; required by non-quasistatic models
+        Angular frequency; required by non-quasistatic models
 
     Returns:
         Complex matrix of shape (N, N), with a zero diagonal
@@ -209,7 +209,7 @@ def _grid_spec(orientation: Orientation, counts: tuple[int, int, int], type: str
     orientation: Orientation
         'x', 'y' or 'z'
     counts: tuple[int, int, int]
-        number of cells along each axis
+        Number of cells along each axis
     type: str
         'center', 'border' or 'open'
 
@@ -244,7 +244,7 @@ def _grid_spec(orientation: Orientation, counts: tuple[int, int, int], type: str
     return _GridSpec(shape=tuple(shape), start=tuple(start), offset=tuple(offset))
 
 def _build_fft_kernel(target: Orientation, source: Orientation, target_spec: _GridSpec, source_spec: _GridSpec, *, spacing: tuple[float, float, float], radius: float, width: float, model: interaction_model, omega: float | None) -> _FFTKernel:
-    """Build FFT kernel for a pair of orientations
+    """Builds FFT kernel for a pair of orientations
     
     Parameters
     ----------
@@ -259,13 +259,13 @@ def _build_fft_kernel(target: Orientation, source: Orientation, target_spec: _Gr
     spacing: tuple[float, float, float]
         Dx, Dy, Dz
     radius: float
-        radius of the ring
+        Radius of the ring
     width: float
-        width of the strip
+        Width of the strip
     model: interaction_model
-        interaction model
+        Interaction model
     omega: float | None
-        angular frequency; required by non-quasistatic models
+        Angular frequency; required by non-quasistatic models
 
     Returns
     -------
@@ -322,28 +322,28 @@ def _build_fft_kernel(target: Orientation, source: Orientation, target_spec: _Gr
     return _FFTKernel(target=target, source=source, target_shape=target_shape, source_shape=source_shape, fft_shape=fft_shape, spectrum=spectrum)
 
 def build_fft_operator(grid_indices: IntArray, orientations: StrArray, *, counts: tuple[int, int, int], spacing: tuple[float, float, float], type: str, radius: float, width: float, model: interaction_model = "quasistatic", omega: float | None = None) -> LinearOperator:
-    """Build a linear operator for the mutual-inductance matrix using FFT-based convolution
+    """Builds a linear operator for the mutual-inductance matrix using FFT-based convolution
 
     Parameters
     ----------
     grid_indices: IntArray
-        indices of the active rings in the full grid, shape (N, 3)
+        Indices of the active rings in the full grid, shape (N, 3)
     orientations: StrArray
-        orientations of the active rings, shape (N,)
+        Orientations of the active rings, shape (N,)
     counts: tuple[int, int, int]
-        number of cells along each axis (Nx, Ny, Nz)
+        Number of cells along each axis (Nx, Ny, Nz)
     spacing: tuple[float, float, float]
-        grid spacing along each axis (Dx, Dy, Dz)
+        Grid spacing along each axis (Dx, Dy, Dz)
     type: str
-        type of the grid ('center', 'border', or 'open')
+        Type of the grid ('center', 'border', or 'open')
     radius: float
-        radius of the ring
+        Radius of the ring
     width: float
-        width of the strip
+        Width of the strip
     model: interaction_model
-        interaction model
+        Interaction model
     omega: float | None
-        angular frequency; required by non-quasistatic models
+        Angular frequency; required by non-quasistatic models
     """
     grid_indices = np.asarray(grid_indices, dtype=int)
     orientations = np.asarray(orientations)
@@ -389,7 +389,7 @@ def build_fft_operator(grid_indices: IntArray, orientations: StrArray, *, counts
         )
 
     def matvec(vector: np.ndarray) -> np.ndarray:
-        '''Define the matrix-vector product for the linear operator'''
+        '''Defines the matrix-vector product for the linear operator'''
         vector = np.asarray(vector).reshape(-1)
         result = np.zeros(len(vector), dtype=np.complex128)
         source_grids = {}

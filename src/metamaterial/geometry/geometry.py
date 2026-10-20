@@ -36,7 +36,7 @@ class Geometry:
             raise ValueError("grid_indices must have shape (N, 3)")
 
 def _coordinates_for_orientation(orientation: str, type: str, counts: tuple[int, int, int],) -> tuple[tuple[NDArray[np.float64], ...], tuple[NDArray[np.int64], ...]]:
-    """Build x/y/z coordinate and index axes for one ring orientation
+    """Builds x/y/z coordinate and index axes for one ring orientation
     
     Parameters
     ----------
@@ -77,7 +77,7 @@ def _coordinates_for_orientation(orientation: str, type: str, counts: tuple[int,
     return tuple(coord_axes), tuple(index_axes)
 
 def build_geometry(config) -> Geometry:
-    """Build geometry from a SimulationConfig-like object
+    """Builds geometry from a SimulationConfig-like object
 
     Parameters
     ----------
@@ -91,9 +91,9 @@ def build_geometry(config) -> Geometry:
 
     Notes
     -----
-        1. orientations follow config.orientations (e.g. 'zyx')
-        2. within each orientation, k-j-i order
-        3. shape filtering preserves the order of surviving candidates
+        1. Orientations follow config.orientations (e.g. 'zyx')
+        2. Within each orientation, k-j-i order
+        3. Shape filtering preserves the order of surviving candidates
     """
     dx, dy, dz = float(config.Dx), float(config.Dy), float(config.Dz)
     nx, ny, nz = int(config.Nx), int(config.Ny), int(config.Nz)
@@ -149,7 +149,7 @@ def build_geometry(config) -> Geometry:
     )
 
 def orientation_normals(orientations: StrArray) -> FloatArray:
-    """Convert ring orientations to Cartesian unit normals"""
+    """Converts ring orientations to Cartesian unit normals"""
     normals = np.zeros((orientations.size, 3), dtype=np.float64)
     for axis, column in (("x", 0), ("y", 1), ("z", 2)):
         normals[orientations == axis, column] = 1.0

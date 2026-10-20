@@ -11,14 +11,14 @@ from src.metamaterial.physics import build_rhs
 ComplexArray = npt.NDArray[np.complex128]
 
 def solve_system(config: SimulationConfig, geometry: Geometry) -> ComplexArray:
-    '''Solve the linear system for the given configuration and geometry
+    '''Solves the linear system for the given configuration and geometry
 
     Parameters
     ----------
     config : SimulationConfig
-        simulation configuration
+        Simulation configuration
     geometry : Geometry
-        geometry of the system
+        Geometry of the system
 
     Returns
     -------

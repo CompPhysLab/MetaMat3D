@@ -13,7 +13,7 @@ ORIENTATION_COLORS = {
 }
 
 def plot_geometry( geometry: Geometry, config: SimulationConfig, orientations: Iterable[str] | None = None, *, n_points: int = 100, show_legend: bool = True) -> go.Figure:
-    """Plot resonator rings in a 3D Plotly figure
+    """Plots resonator rings in a 3D Plotly figure
     Parameters
     ----------
     geometry

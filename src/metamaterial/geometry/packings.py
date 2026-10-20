@@ -7,7 +7,7 @@ FloatArray = npt.NDArray[np.float64]
 BoolArray = npt.NDArray[np.bool_]
 
 def rectangle(points: FloatArray, counts: tuple[float, float, float]) -> BoolArray:
-    """Keep all candidate points in the rectangular bounding box
+    """Keeps all candidate points in the rectangular bounding box
 
     Parameters
     ----------
@@ -25,7 +25,7 @@ def rectangle(points: FloatArray, counts: tuple[float, float, float]) -> BoolArr
     return np.ones(points.shape[0], dtype=bool)
 
 def ellipse(points: FloatArray, counts: tuple[float, float, float], *, tol: float = 1e-12,) -> BoolArray:
-    """Keep points inside an ellipsoid centered at (Lx/2, Ly/2, Lz/2)
+    """Keeps points inside an ellipsoid centered at (Lx/2, Ly/2, Lz/2)
 
     Parameters
     ----------
@@ -49,7 +49,7 @@ def ellipse(points: FloatArray, counts: tuple[float, float, float], *, tol: floa
     return np.sum(normalized**2, axis=1) <= 1.0 + tol
 
 def cylinder_z(points: FloatArray, counts: tuple[float, float, float], *, tol: float = 1e-12,) -> BoolArray:
-    """Keep points inside a cylinder along the z-axis centered at (Lx/2, Ly/2) with height Lz
+    """Keeps points inside a cylinder along the z-axis centered at (Lx/2, Ly/2) with height Lz
 
     Parameters
     ----------
@@ -86,7 +86,7 @@ PACKING_RULES: dict[str, Callable[..., BoolArray]] = {
 
 
 def get_packing_rule(name: str) -> Callable[..., BoolArray]:
-    """Return a packing rule by name"""
+    """Returns a packing rule by name"""
     try:
         return PACKING_RULES[name]
     except (KeyError, AttributeError) as exc:

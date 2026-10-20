@@ -38,15 +38,15 @@ def compute_ln_par(r_1: float, r_2: float, k: float, N_max: int, N_theta=200) ->
     Parameters
     ----------
     r_1 : float
-        radius of the first ring
+        Radius of the first ring
     r_2 : float
-        radius of the second ring
+        Radius of the second ring
     k : float
-        wavenumber
+        Wavenumber
     N_max : int
-        maximum number of modes to compute
+        Maximum number of modes to compute
     N_theta : int, optional
-        number of Chebyshev nodes, by default 200
+        Number of Chebyshev nodes, by default 200
 
     Returns
     -------
@@ -73,12 +73,12 @@ def ln_interpolators_par(u_grid: np.ndarray, Ln_data: dict[int, np.ndarray]) -> 
     u_grid : np.ndarray
         Chebyshev nodes
     Ln_data : dict[int, np.ndarray]
-        dictionary of the Ln modes
+        Dictionary of the Ln modes
 
     Returns
     -------
     dict[int, callable]
-        dictionary of the interpolators for each Ln mode
+        Dictionary of the interpolators for each Ln mode
     '''
     interpolators = {}
     for n, vals in Ln_data.items():
@@ -96,20 +96,20 @@ def L_cached_par(N: int, r: float, k: float, theta: float, ln_interps: dict[int,
     Parameters
     ----------
     N : int
-        number of modes to include in the computation
+        Number of modes to include in the computation
     r : float
-        distance between the centers of the rings
+        Distance between the centers of the rings
     k : float
-        wavenumber
+        Wavenumber
     theta : float
-        angle at which to evaluate the inductance
+        Angle at which to evaluate the inductance
     ln_interps : dict[int, callable]
-        dictionary of interpolators for each Ln mode
+        Dictionary of interpolators for each Ln mode
 
     Returns
     -------
     complex
-        total inductance at the specified angle
+        Total inductance at the specified angle
     '''
     total = 0.0 + 0j
     for i in range(1, N + 1):
@@ -122,17 +122,17 @@ def compute_Fnm_modes(r_1: float, r_2: float, k: float, N_max: int, N_theta=200,
     Parameters
     ----------
     r_1 : float
-        radius of the first ring
+        Radius of the first ring
     r_2 : float
-        radius of the second ring
+        Radius of the second ring
     k : float
-        wavenumber
+        Wavenumber
     N_max : int
-        maximum number of modes to include in the computation
+        Maximum number of modes to include in the computation
     N_theta : int, optional
-        number of theta points, by default 200
+        Number of theta points, by default 200
     M_modes : int, optional
-        number of phi modes to include in the computation, by default 5
+        Number of phi modes to include in the computation, by default 5
 
     Returns
     -------
@@ -194,7 +194,7 @@ def make_F_interpolators(u_grid: np.ndarray, F_data: dict[int, dict[int, np.ndar
     Returns
     -------
     dict[int, dict[int, BarycentricInterpolator]]
-        interpolators for the Fnm modes
+        Interpolators for the Fnm modes
     '''
     interpolators = {}
     for m, n_data in F_data.items():
@@ -209,20 +209,20 @@ def Ln_at_point(interpolators: dict[int, dict[int, BarycentricInterpolator]], m_
     Parameters
     ----------
     interpolators : dict[int, dict[int, BarycentricInterpolator]]
-        interpolators for the Fnm modes
+        Interpolators for the Fnm modes
     m_modes : int
-        number of modes
+        Number of modes
     theta : float
-        polar angle
+        Polar angle
     phi : float
-        azimuthal angle
+        Azimuthal angle
     n : int
-        mode number
+        Mode number
 
     Returns
     -------
     complex
-        value of the Ln mode at the specified point
+        Value of the Ln mode at the specified point
     '''
 
     u = np.cos(theta)
@@ -240,24 +240,24 @@ def L_cached_ort(N: int, r: float, k: float, theta: float, phi: float, interpola
     Parameters
     ----------
     N : int
-        number of modes
+        Number of modes
     r : float
-        distance between the centers of the rings
+        Distance between the centers of the rings
     k : float
-        wavenumber
+        Wavenumber
     theta : float
-        polar angle
+        Polar angle
     phi : float
-        azimuthal angle
+        Azimuthal angle
     interpolators : dict[int, dict[int, BarycentricInterpolator]]
-        interpolators for the Fnm modes
+        Interpolators for the Fnm modes
     m_modes : int
-        number of m modes
+        Number of m modes
 
     Returns
     -------
     complex
-        total inductance for the orthogonal-oriented ring configuration
+        Total inductance for the orthogonal-oriented ring configuration
     '''
     total = 0.0 + 0.0j
     for n in range(1, N + 1):
@@ -275,18 +275,18 @@ def _get_recurrent_interps_par(r1: float, r2: float, k: float, N: int) -> dict[i
     Parameters
     ----------
     r1 : float
-        radius of the first ring
+        Radius of the first ring
     r2 : float
-        radius of the second ring
+        Radius of the second ring
     k : float
-        wavenumber
+        Wavenumber
     N : int
-        number of modes
+        Number of modes
 
     Returns
     -------
     dict[int, callable]
-        interpolators for the Ln modes  
+        Interpolators for the Ln modes  
     '''
     key = (r1, r2, k, N)
     if key not in _recurrent_cache_par:
@@ -300,20 +300,20 @@ def _get_recurrent_interps_ort(r1: float, r2: float, k: float, N: int, M: int = 
     Parameters
     ----------
     r1 : float
-        radius of the first ring
+        Radius of the first ring
     r2 : float
-        radius of the second ring
+        Radius of the second ring
     k : float
-        wavenumber
+        Wavenumber
     N : int
-        number of modes
+        Number of modes
     M : int, optional
-        number of phi modes, by default 5
+        Number of phi modes, by default 5
 
     Returns
     -------
     dict[int, callable]
-        interpolators for the Fnm modes
+        Interpolators for the Fnm modes
     '''
     key = (r1, r2, k, N)
     if key not in _recurrent_cache_ort:
@@ -322,27 +322,27 @@ def _get_recurrent_interps_ort(r1: float, r2: float, k: float, N: int, M: int = 
     return _recurrent_cache_ort[key]
 
 def L_parallel(omega: float, dx:float, dy:float, dz:float, r1:float, r2:float) -> complex:
-    '''computes the recurrent inductance for a parallel-oriented ring configuration
+    '''Computes the recurrent inductance for a parallel-oriented ring configuration
 
     Parameters
     ----------
     omega : float
-        angular frequency
+        Angular frequency
     dx : float
-        distance between the centers of the rings along the x-axis
+        Distance between the centers of the rings along the x-axis
     dy : float
-        distance between the centers of the rings along the y-axis
+        Distance between the centers of the rings along the y-axis
     dz : float
-        distance between the centers of the rings along the z-axis
+        Distance between the centers of the rings along the z-axis
     r1 : float
-        radius of the first ring
+        Radius of the first ring
     r2 : float
-        radius of the second ring
+        Radius of the second ring
 
     Returns
     -------
     complex
-        mutual inductance between two parallel-oriented rings
+        Mutual inductance between two parallel-oriented rings
     '''
     k=omega/c
     dist = np.sqrt(dx ** 2 + dy ** 2+dz**2)
@@ -353,27 +353,27 @@ def L_parallel(omega: float, dx:float, dy:float, dz:float, r1:float, r2:float) -
     return L_cached_par(N, float(dist), k, theta, ln_interps)
 
 def L_orthogonal(omega: float, dx:float, dy:float, dz:float, r1:float, r2:float) -> complex:
-    '''computes the recurrent inductance for a orthogonal-oriented ring configuration
+    '''Computes the recurrent inductance for a orthogonal-oriented ring configuration
 
     Parameters
     ----------
     omega : float
-        angular frequency
+        Angular frequency
     dx : float
-        distance between the centers of the rings along the x-axis
+        Distance between the centers of the rings along the x-axis
     dy : float
-        distance between the centers of the rings along the y-axis
+        Distance between the centers of the rings along the y-axis
     dz : float
-        distance between the centers of the rings along the z-axis
+        Distance between the centers of the rings along the z-axis
     r1 : float
-        radius of the first ring
+        Radius of the first ring
     r2 : float
-        radius of the second ring
+        Radius of the second ring
 
     Returns
     -------
     complex
-        mutual inductance between two orthogonal-oriented rings
+        Mutual inductance between two orthogonal-oriented rings
     '''
     k=omega/c
     dist = np.sqrt(dx ** 2 + dy ** 2+dz**2)
