@@ -117,7 +117,7 @@ def test_public_function_passes_transformed_coordinates(monkeypatch):
     captured = {}
 
     def fake_cached(
-        model, omega, x, y, z, r1, r2, width, parallel
+        model, omega, x, y, z, r1, r2, parallel, width,
     ):
         captured.update(
             model=model,
@@ -127,8 +127,8 @@ def test_public_function_passes_transformed_coordinates(monkeypatch):
             z=z,
             r1=r1,
             r2=r2,
-            width=width,
             parallel=parallel,
+            width=width,
         )
         return 1.0
 
@@ -153,8 +153,8 @@ def test_public_function_passes_transformed_coordinates(monkeypatch):
         "z": 2.0,
         "r1": 4.0,
         "r2": 5.0,
-        "width": 0.0,
         "parallel": True,
+        "width": 0.0,
     }
 
 # Strip-width
@@ -199,12 +199,19 @@ def test_equal_radii_width_averaging(monkeypatch, model, omega):
 
     expected = (
         (10.0 * r + r)
-        + 2.0 * (10.0 * r + R)
+        + (10.0 * r + R)
+        + (10.0 * R + r)
         + (10.0 * R + R)
     ) / 4.0
 
     assert result == pytest.approx(expected)
-    assert len(calls) == 3
+    assert len(calls) == 4
+    assert [call[-2:] for call in calls] == [
+        (r, r),
+        (r, R),
+        (R, r),
+        (R, R),
+    ]
 
 def test_unequal_radii_width_averaging(monkeypatch):
     calls = []
@@ -235,13 +242,21 @@ def test_unequal_radii_width_averaging(monkeypatch):
 
     delta = operator.gamma * 0.2 / 2.0
 
-    expected = (
-        (10.0 * (3.0 + delta) + 5.0)
-        + (10.0 * (3.0 - delta) + 5.0)
-    ) / 2.0
+    r1_values = (3.0 - delta, 3.0 + delta)
+    r2_values = (5.0 - delta, 5.0 + delta)
+    expected = sum(
+        10.0 * r1 + r2
+        for r1 in r1_values
+        for r2 in r2_values
+    ) / 4.0
 
     assert result == pytest.approx(expected)
-    assert len(calls) == 2
+    assert len(calls) == 4
+    assert [call[-2:] for call in calls] == [
+        (r1, r2)
+        for r1 in r1_values
+        for r2 in r2_values
+    ]
 
 def test_unequal_radii_width_averaging_when_r2_is_smaller(monkeypatch):
     calls = []
@@ -272,13 +287,21 @@ def test_unequal_radii_width_averaging_when_r2_is_smaller(monkeypatch):
 
     delta = operator.gamma * 0.2 / 2.0
 
-    expected = (
-        (10.0 * 5.0 + (3.0 + delta))
-        + (10.0 * 5.0 + (3.0 - delta))
-    ) / 2.0
+    r1_values = (5.0 - delta, 5.0 + delta)
+    r2_values = (3.0 - delta, 3.0 + delta)
+    expected = sum(
+        10.0 * r1 + r2
+        for r1 in r1_values
+        for r2 in r2_values
+    ) / 4.0
 
     assert result == pytest.approx(expected)
-    assert len(calls) == 2
+    assert len(calls) == 4
+    assert [call[-2:] for call in calls] == [
+        (r1, r2)
+        for r1 in r1_values
+        for r2 in r2_values
+    ]
 
 def test_zero_width_uses_original_radii(monkeypatch):
     calls = []
@@ -316,7 +339,7 @@ def test_public_function_applies_mu0_once(monkeypatch):
     captured = {}
 
     def fake_cached(
-        model, omega, x, y, z, r1, r2, width, parallel
+        model, omega, x, y, z, r1, r2, parallel, width
     ):
         captured.update(
             model=model,
@@ -326,8 +349,8 @@ def test_public_function_applies_mu0_once(monkeypatch):
             z=z,
             r1=r1,
             r2=r2,
-            width=width,
             parallel=parallel,
+            width=width,
         )
         return 2.0+3.0j
 
@@ -394,8 +417,8 @@ def test_cached_function_reuses_identical_inputs(monkeypatch):
         z=3.0,
         r1=4.0,
         r2=5.0,
-        width=0.0,
         parallel=True,
+        width=0.0,
     )
 
     first = operator._cached_mutual_inductance(**kwargs)
