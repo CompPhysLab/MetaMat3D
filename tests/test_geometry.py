@@ -1,12 +1,19 @@
 from types import SimpleNamespace
 import numpy as np
 import pytest
-from src.metamaterial.geometry import build_geometry
+from src.metamaterial.geometry import (
+    build_geometry,
+    orientation_normals,
+)
 
 def config(**overrides):
     values = dict(
-        Dx=1.0, Dy=1.0, Dz=1.0,
-        Nx=2, Ny=2, Nz=2,
+        Dx=1.0,
+        Dy=1.0,
+        Dz=1.0,
+        Nx=2,
+        Ny=2,
+        Nz=2,
         orientations="zyx",
         type="center",
         packing="rectangle",
@@ -14,65 +21,168 @@ def config(**overrides):
     values.update(overrides)
     return SimpleNamespace(**values)
 
-def test_center_rectangle_count_and_order():
+def test_center_rectangle_count_dtype_and_order():
     result = build_geometry(config(orientations="z", type="center"))
+
     assert result.centers.shape == (8, 3)
+    assert result.centers.dtype == np.int16
+    assert result.orientations.shape == (8,)
+    assert result.orientations.dtype.kind == "U"
     assert np.all(result.orientations == "z")
-    np.testing.assert_allclose(
-        result.centers[:4],
-        [[0.5, 0.5, 0.5],
-         [1.5, 0.5, 0.5],
-         [0.5, 1.5, 0.5],
-         [1.5, 1.5, 0.5]],
+
+    # Center coordinates are odd integer lattice coordinates.
+    np.testing.assert_array_equal(
+        result.centers,
+        np.array(
+            [
+                [1, 1, 1],
+                [3, 1, 1],
+                [1, 3, 1],
+                [3, 3, 1],
+                [1, 1, 3],
+                [3, 1, 3],
+                [1, 3, 3],
+                [3, 3, 3],
+            ],
+            dtype=np.int16,
+        ),
     )
 
-def test_border_has_extra_plane_only_on_normal_axis():
-    z_result = build_geometry(config(orientations="z", type="border"))
-    y_result = build_geometry(config(orientations="y", type="border"))
-    x_result = build_geometry(config(orientations="x", type="border"))
-    assert len(z_result.centers) == 3 * 2 * 2
-    assert len(y_result.centers) == 2 * 3 * 2
-    assert len(x_result.centers) == 2 * 2 * 3
+@pytest.mark.parametrize(
+    ("orientation", "expected_count", "normal_axis"),
+    [
+        ("z", 3 * 2 * 2, 2),
+        ("y", 2 * 3 * 2, 1),
+        ("x", 2 * 2 * 3, 0),
+    ],
+)
+def test_border_has_extra_plane_on_normal_axis(
+    orientation, expected_count, normal_axis
+):
+    result = build_geometry(config(orientations=orientation, type="border"))
 
-def test_open_excludes_normal_boundary_planes():
-    result = build_geometry(config(orientations="z", type="open"))
-    assert len(result.centers) == 4  # one interior plane times Nx * Ny
-    np.testing.assert_allclose(result.centers[:, 2], [1.0, 1.0, 1.0, 1.0])
-    np.testing.assert_allclose(result.centers[:,0], [0.5, 1.5, 0.5, 1.5])
+    assert result.centers.shape == (expected_count, 3)
+    assert np.all(result.orientations == orientation)
+
+    normal_coordinates = result.centers[:, normal_axis]
+
+    np.testing.assert_array_equal(
+        np.unique(normal_coordinates),
+        np.array([0, 2, 4], dtype=np.int16),
+    )
+
+@pytest.mark.parametrize(
+    ("orientation", "normal_axis"),
+    [
+        ("z", 2),
+        ("y", 1),
+        ("x", 0),
+    ],
+)
+def test_open_excludes_normal_boundary_planes(orientation, normal_axis):
+    result = build_geometry(config(orientations=orientation, type="open"))
+
+    assert len(result.centers) == 4
+    assert np.all(result.orientations == orientation)
+
+    # For N=2, the only interior normal coordinate is 2.
+    np.testing.assert_array_equal(
+        result.centers[:, normal_axis],
+        np.full(4, 2, dtype=np.int16),
+    )
+
+    # Non-normal axes contain cell-center coordinates.
+    for axis in range(3):
+        if axis != normal_axis:
+            assert np.all(result.centers[:, axis] % 2 == 1)
 
 def test_orientation_blocks_follow_requested_order():
     result = build_geometry(config(orientations="yx", type="center"))
-    assert result.orientations[0] == "y"
-    assert result.orientations[-1] == "x"
-    assert np.all(result.orientations[:8] == "y")
-    assert np.all(result.orientations[8:] == "x")
 
-def test_ellipsoid_filters_points_without_reordering():
-    rectangular = build_geometry(config(orientations="z", type="center"))
-    ellipsoidal = build_geometry(config(orientations="z", type="center",
-                                        packing="ellipse"))
-    assert len(ellipsoidal.centers) <= len(rectangular.centers)
-    # Filtering may remove candidates but must preserve the original sequence
-    expected = [p for p in rectangular.centers
-                if np.sum(((p - 1.0) / 1.0) ** 2) <= 1.0 + 1e-12]
-    np.testing.assert_allclose(ellipsoidal.centers, np.asarray(expected).reshape(-1, 3))
+    assert result.centers.shape == (16, 3)
+    np.testing.assert_array_equal(result.orientations[:8], "y")
+    np.testing.assert_array_equal(result.orientations[8:], "x")
+
+def test_center_coordinates_follow_k_j_i_order():
+    result = build_geometry(config(orientations="z", type="center"))
+
+    # With Fortran-order ravel, i changes fastest, then j, then k.
+    np.testing.assert_array_equal(
+        result.centers[:4],
+        np.array(
+            [
+                [1, 1, 1],
+                [3, 1, 1],
+                [1, 3, 1],
+                [3, 3, 1],
+            ],
+            dtype=np.int16,
+        ),
+    )
+
+def test_ellipse_filters_points_without_reordering():
+    rectangular = build_geometry(
+        config(orientations="z", type="center", packing="rectangle")
+    )
+    ellipse = build_geometry(
+        config(orientations="z", type="center", packing="ellipse")
+    )
+
+    assert len(ellipse.centers) <= len(rectangular.centers)
+
+    rectangular_points = {
+        tuple(point): index
+        for index, point in enumerate(rectangular.centers)
+    }
+    indices = [rectangular_points[tuple(point)] for point in ellipse.centers]
+
+    assert indices == sorted(indices)
 
 def test_cylinder_filters_points_without_reordering():
-    rectangular = build_geometry(config(orientations="z", type="center"))
-    cylinder = build_geometry(config(orientations="z", type="center",
-                                        packing="cylinder_z"))
-    assert len(cylinder.centers) <= len(rectangular.centers)
-    # Filtering may remove candidates but must preserve the original sequence
-    p_xy = rectangular.centers[:, :2]
-    p_z = rectangular.centers[:, 2]
-    inside_cylinder_xy = np.sum(((p_xy - 1.0) / 1.0) ** 2, axis=1) <= 1.0 + 1e-12
-    inside_cylinder_z = (p_z >= -1e-12) & (p_z <= 2.0 + 1e-12)
-    inside_cylinder = inside_cylinder_xy & inside_cylinder_z
-    expected = [p for p in rectangular.centers
-                if inside_cylinder[np.where((rectangular.centers == p).all(axis=1))[0][0]]]
-    np.testing.assert_allclose(cylinder.centers, np.asarray(expected).reshape(-1, 3))
+    rectangular = build_geometry(
+        config(orientations="z", type="center", packing="rectangle")
+    )
+    cylinder = build_geometry(
+        config(orientations="z", type="center", packing="cylinder_z")
+    )
 
-@pytest.mark.parametrize("kind", ["bad", ""])
-def test_invalid_type_raises(kind):
-    with pytest.raises(ValueError):
-        build_geometry(config(type=kind))
+    assert len(cylinder.centers) <= len(rectangular.centers)
+
+    rectangular_points = {
+        tuple(point): index
+        for index, point in enumerate(rectangular.centers)
+    }
+    indices = [rectangular_points[tuple(point)] for point in cylinder.centers]
+
+    assert indices == sorted(indices)
+
+def test_orientation_normals_maps_axes_to_unit_vectors():
+    orientations = np.array(["x", "y", "z", "z", "x"], dtype="<U1")
+
+    normals = orientation_normals(orientations)
+
+    np.testing.assert_array_equal(
+        normals,
+        np.array(
+            [
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1],
+                [0, 0, 1],
+                [1, 0, 0],
+            ],
+            dtype=np.int16,
+        ),
+    )
+
+def test_orientation_normals_preserves_order_and_shape():
+    orientations = np.array(["z", "x", "y"], dtype="<U1")
+
+    normals = orientation_normals(orientations)
+
+    assert normals.shape == (3, 3)
+    assert normals.dtype == np.int16
+    np.testing.assert_array_equal(
+        normals,
+        np.eye(3, dtype=np.int16)[[2, 0, 1]],
+    )

@@ -43,6 +43,7 @@ def plot_geometry( geometry: Geometry, config: SimulationConfig, orientations: I
     normals = orientation_normals(orientations)
     theta = np.linspace(0.0, 2.0 * np.pi, n_points)
     radius = config.radius
+    spacings = [config.Dx, config.Dy, config.Dz]/2
 
     for axis in ("x", "y", "z"):
         if axis not in selected:
@@ -59,7 +60,7 @@ def plot_geometry( geometry: Geometry, config: SimulationConfig, orientations: I
         )
 
         for j, idx in enumerate(indices):
-            x0, y0, z0 = centers[idx]
+            x0, y0, z0 = centers[idx] * spacings
 
             if axis == "x":
                 x = np.full_like(theta, x0)

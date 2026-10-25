@@ -33,14 +33,17 @@ def calculate(config: SimulationConfig) -> None:
         print(f"Saving polarizability")
         polarizability = np.zeros(len(config.omegas), dtype=np.complex128)
         for i, omega in enumerate(config.omegas):
-            polarizability[i] = results.polarizability(I[:, i], config.radius, normals, config.H_0, config.H_direction)
+            polarizability[i] = results.polarizability(I[:, i], config.radius,
+                                                       normals, config.H_0, config.H_direction)
         np.save(f"DATA/{config.name}/polarizability.npy", polarizability)
         print(f"Polarizability saved to DATA/{config.name}/polarizability.npy")
     if config.save_extinction_cross_section:
         print(f"Saving extinction cross section")
         sigma_ext = np.zeros_like(config.omegas, dtype=np.float64)
         for i, omega in enumerate(config.omegas):
-            sigma_ext[i] = results.extinction(I[:, i], config.radius, normals, geometry.centers, config.H_0, config.H_direction, config.k_direction, omega)
+            sigma_ext[i] = results.extinction(I[:, i], config.radius,
+                                              normals, geometry.centers, config.H_0,
+                                              config.H_direction, config.k_direction, omega)
         np.save(f"DATA/{config.name}/extinction_cross_section.npy", sigma_ext)
         print(f"extinction cross section saved to DATA/{config.name}/extinction_cross_section.npy")
     print(f"")

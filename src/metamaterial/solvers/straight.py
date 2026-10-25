@@ -27,16 +27,26 @@ def solve_system(config: SimulationConfig, geometry: Geometry) -> ComplexArray:
     '''
     omegas = np.asarray(config.omegas, dtype=np.float64)
     normals = orientation_normals(geometry.orientations)
+    spacings = [config.Dx, config.Dy, config.Dz]
 
     currents = np.zeros((len(geometry.centers), len(omegas)),dtype=np.complex128)
 
     if config.interaction_model=='quasistatic':
-        M = mutual_inductance_matrix(geometry.centers, geometry.orientations, radius=config.radius, width=config.width, model=config.interaction_model, omega=None)
+        M = mutual_inductance_matrix(geometry.centers, spacings, geometry.orientations,
+                                     radius=config.radius, width=config.width,
+                                     model=config.interaction_model, omega=None)
+        rhs = build_rhs(geometry.centers, spacings, normals,
+                        config.radius, config.H_0, config.H_direction,
+                        model=config.interaction_model, k_direction=None, omega=None)
 
     for i, omega in tqdm(enumerate(omegas)):
         M_0 = self_inductance(omega, config.R, config.L, config.C)*np.ones((len(geometry.orientations)))
         if config.interaction_model != "quasistatic":
-            M = mutual_inductance_matrix(geometry.centers, geometry.orientations, radius=config.radius, width=config.width, model=config.interaction_model, omega=omega)
-        rhs = build_rhs(geometry.centers, normals, config.radius, config.H_0, config.H_direction, model=config.interaction_model, k_direction=config.k_direction, omega=omega)
+            M = mutual_inductance_matrix(geometry.centers, spacings, geometry.orientations,
+                                         radius=config.radius, width=config.width,
+                                         model=config.interaction_model, omega=omega)
+            rhs = build_rhs(geometry.centers, spacings, normals,
+                            config.radius, config.H_0, config.H_direction,
+                            model=config.interaction_model, k_direction=config.k_direction, omega=omega)
         currents[:, i] = solve((np.diag(M_0)-M), rhs, assume_a='sym')
     return currents
