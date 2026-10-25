@@ -203,11 +203,11 @@ def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
     
     if First_ring.pos == Second_ring.pos and not asymp_par(omega, R, r1, r2, accuracy):
         if First_ring.pos == "z":                           # Z-oriented rings
-            l = L_parallel(omega, dy, dx, dz, r1, r2, w)
+            l = L_parallel(omega, dx, dy, dz, r1, r2, w)
         elif First_ring.pos == "y":                         # Y-oriented rings
-            l = L_parallel(omega, dy, -dz, dx, r1, r2, w)
+            l = L_parallel(omega, dx, -dz, dy, r1, r2, w)
         else:                                               # X-oriented rings
-            l = L_parallel(omega, -dz, dx, dy, r1, r2, w)
+            l = L_parallel(omega, -dz, dy, dx, r1, r2, w)
 
     elif First_ring.pos == Second_ring.pos and asymp_par(omega, R, r1, r2, accuracy):
         if First_ring.pos == "z":                           # Z-oriented rings
@@ -222,19 +222,19 @@ def Mnm(omega, First_ring:Ring, Second_ring:Ring, Data:dict = {}) -> float:
     elif First_ring.pos != Second_ring.pos and not asymp_ort(omega, R, r1, r2, accuracy):
         if First_ring.pos == "z":
             if Second_ring.pos == "y":                      # Z-Y oriented pair
-                l = L_orthogonal(omega, dy, dx, dz, r1, r2, w)
+                l = L_orthogonal(omega, -dy, dx, dz, r1, r2, w)
             else:                                           # Z-X oriented pair
-                l = L_orthogonal(omega, dx, dy, dz, r1, r2, w)
+                l = L_orthogonal(omega, dx, -dy, dz, r1, r2, w)
         elif First_ring.pos == "y":
             if Second_ring.pos == "z":                      # Y-Z oriented pair
-                l = L_orthogonal(omega, dy, dz, dx, r1, r2, w)
+                l = L_orthogonal(omega, -dy, dz, dx, r1, r2, w)
             else:                                           # Y-X oriented pair
-                l = L_orthogonal(omega, -dz, dy, dx, r1, r2,  w)
+                l = L_orthogonal(omega, -dz, -dy, dx, r1, r2,  w)
         elif First_ring.pos == "x":
             if Second_ring.pos == "z":                      # X-Z oriented pair
-                l = L_orthogonal(omega, dx, dz, dy, r1, r2, w)
+                l = L_orthogonal(omega, dx, dz, -dy, r1, r2, w)
             else:                                           # X-Y oriented pair
-                l = L_orthogonal(omega, dz, dx, dy, r1, r2, w)
+                l = L_orthogonal(omega, dz, dx, -dy, r1, r2, w)
 
     elif First_ring.pos != Second_ring.pos and asymp_ort(omega, R, r1, r2, accuracy):
         if First_ring.pos == "z":

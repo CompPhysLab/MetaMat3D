@@ -62,7 +62,7 @@ def compute_ln_par(r_1: float, r_2: float, k: float, N_max: int, N_theta=200) ->
     for n in range(1, N_max):
         Ln = Ln_data[n]
         BLn = B @ Ln
-        Ln_data[n + 1] = ((n) * Ln + (1.0 / (n+1)) * BLn) / (2j * k)
+        Ln_data[n + 1] = ((n-1) * Ln + (1.0 / n) * BLn) / (2j * k)
     return u, Ln_data
 
 def ln_interpolators_par(u_grid: np.ndarray, Ln_data: dict[int, np.ndarray]) -> dict[int, callable]:
