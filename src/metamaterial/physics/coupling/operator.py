@@ -95,6 +95,8 @@ def _mutual_inductance(model: interaction_model, omega: float | None,
     """
     module = _MODELS[model]
     function_name = "L_parallel" if parallel else "L_orthogonal"
+    if model == "approx_retarded" and x**2 + y**2 + z**2 < 3*15e-3:
+        module = full_retarded
     function = getattr(module, function_name)
     if model == "quasistatic":
         args = (x, y, z)

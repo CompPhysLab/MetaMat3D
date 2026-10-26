@@ -42,7 +42,7 @@ def solve_system(config: SimulationConfig, geometry: Geometry, *, use_preconditi
                         config.radius, config.H_0, config.H_direction,
                         model=config.interaction_model, k_direction=None, omega=None)
 
-    for i, omega in tqdm(enumerate(omegas)):
+    for i, omega in enumerate(tqdm(omegas)):
         M_0 = self_inductance(omega, config.R, config.L, config.C)
         if config.interaction_model != "quasistatic":
             M = build_fft_operator(geometry.centers, geometry.orientations,

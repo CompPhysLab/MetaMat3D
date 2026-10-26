@@ -39,7 +39,7 @@ def solve_system(config: SimulationConfig, geometry: Geometry) -> ComplexArray:
                         config.radius, config.H_0, config.H_direction,
                         model=config.interaction_model, k_direction=None, omega=None)
 
-    for i, omega in tqdm(enumerate(omegas)):
+    for i, omega in enumerate(tqdm(omegas)):
         M_0 = self_inductance(omega, config.R, config.L, config.C)*np.ones((len(geometry.orientations)))
         if config.interaction_model != "quasistatic":
             M = mutual_inductance_matrix(geometry.centers, spacings, geometry.orientations,
