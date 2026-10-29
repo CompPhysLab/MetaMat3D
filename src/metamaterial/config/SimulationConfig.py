@@ -32,9 +32,9 @@ class SimulationConfig:
     type: str
 
     # Sample geometry
-    Nx: int
-    Ny: int
-    Nz: int
+    Nx: np.int16
+    Ny: np.int16
+    Nz: np.int16
     packing: str
 
     # Interaction model
@@ -149,7 +149,7 @@ class SimulationConfig:
             ("Ny", self.Ny),
             ("Nz", self.Nz),
         ):
-            if isinstance(value, bool) or not isinstance(value, int):
+            if isinstance(value, bool) or not isinstance(value, np.int16):
                 raise TypeError(f"{name} must be an integer")
 
             if value <= 0:

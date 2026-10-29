@@ -85,7 +85,7 @@ def build_geometry(config) -> Geometry:
         2. Within each orientation, k-j-i order
         3. Shape filtering preserves the order of surviving candidates
     """
-    counts = (int(config.Nx), int(config.Ny), int(config.Nz))
+    counts = (config.Nx, config.Ny, config.Nz)
     type = str(config.type)
     packing = str(config.packing)
     orientations = str(config.orientations)

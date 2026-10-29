@@ -123,7 +123,7 @@ def _cached_mutual_inductance(model: interaction_model, omega: float | None,
     """Cache the resulting mutual inductance for performance with local coordinates"""
     return _mutual_inductance(model, omega, x, y, z, r1, r2, parallel, width)
 
-def mutual_inductance(*, displacement: tuple[int, int, int], spacings: tuple[float, float, float],
+def mutual_inductance(*, displacement: IntArray, spacings: FloatArray,
                       r1: float, r2: float, width: float,
                       orientation1: Orientation, orientation2: Orientation,
                       model: interaction_model = "quasistatic", omega: float | None = None) -> complex:
@@ -131,9 +131,9 @@ def mutual_inductance(*, displacement: tuple[int, int, int], spacings: tuple[flo
 
     Parameters
     ----------
-    displacement : tuple[int, int, int]
+    displacement : IntArray
         Vector from the center of ring 1 to the center of ring 2
-    spacings : tuple[float, float, float]
+    spacings : FloatArray
         Lattice diameters, shape (3), containing Dx, Dy, Dz
     r1, r2 : float
         Radii of the two rings
@@ -151,8 +151,7 @@ def mutual_inductance(*, displacement: tuple[int, int, int], spacings: tuple[flo
     complex
         Mutual inductance between the two rings
     """
-    spacings = np.asarray(spacings, dtype=float)
-    dx, dy, dz = np.asarray(displacement) * spacings / 2
+    dx, dy, dz = displacement * spacings / 2
     if dx == 0.0 and dy == 0.0 and dz == 0.0:
         return 0.0 + 0.0j
 
@@ -187,17 +186,12 @@ def mutual_inductance_matrix(centers: IntArray, spacings: FloatArray, orientatio
     Returns:
         Complex matrix of shape (N, N), with a zero diagonal
     """
-
-    centers = np.asarray(centers, dtype=np.int16)
-    spacings = np.asarray(spacings, dtype=float)
-    orientations = np.asarray(orientations)
-
     n_rings = len(centers)
     matrix = np.zeros((n_rings, n_rings), dtype=np.complex128)
 
     for i in range(n_rings):
         for j in range(i + 1, n_rings):
-            displacement = tuple(centers[j] - centers[i])
+            displacement = centers[j] - centers[i]
             value = mutual_inductance(displacement=displacement, spacings = spacings,
                                       r1=radius, r2=radius, width=width,
                                       orientation1=str(orientations[i]), orientation2=str(orientations[j]),
@@ -246,7 +240,7 @@ def _grid_shape_and_start(orientation: Orientation,
 def _build_fft_kernel(target: Orientation, source: Orientation,
                       target_shape: tuple[int, int, int], source_shape: tuple[int, int, int],
                       target_start: tuple[int, int, int], source_start: tuple[int, int, int], *,
-                      spacings: tuple[float, float, float], radius: float, width: float,
+                      spacings: FloatArray, radius: float, width: float,
                       model: interaction_model, omega: float | None) -> _FFTKernel:
     """Builds FFT kernel for a pair of orientations
     
@@ -296,7 +290,7 @@ def _build_fft_kernel(target: Orientation, source: Orientation,
     kernel = np.empty(kernel_shape, dtype=np.complex128)
 
     for index in np.ndindex(kernel_shape):
-        delta = tuple(int(v) for v in displacement[index])
+        delta = displacement[index]
         kernel[index] = mutual_inductance(displacement=delta, spacings=spacings,
                                           r1=radius, r2=radius, width=width,
                                           orientation1=target, orientation2=source,

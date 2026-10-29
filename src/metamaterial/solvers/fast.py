@@ -27,8 +27,8 @@ def solve_system(config: SimulationConfig, geometry: Geometry, *, use_preconditi
     omegas = np.asarray(config.omegas, dtype=np.float64)
     normals = orientation_normals(geometry.orientations)
     n_rings = len(geometry.centers)
-    spacings = [config.Dx, config.Dy, config.Dz]
-    preconditioner_cutoff = np.linalg.norm(spacings)
+    spacings = np.asarray([config.Dx, config.Dy, config.Dz], dtype=np.float64)
+    preconditioner_cutoff = 2
     currents = np.zeros((n_rings, len(omegas)), dtype=np.complex128)
 
     x0 = None
@@ -41,6 +41,12 @@ def solve_system(config: SimulationConfig, geometry: Geometry, *, use_preconditi
         rhs = build_rhs(geometry.centers, spacings, normals,
                         config.radius, config.H_0, config.H_direction,
                         model=config.interaction_model, k_direction=None, omega=None)
+
+    # if use_preconditioner:
+    #     P = build_preconditioner(geometry.centers, spacings, geometry.orientations, self_inductance(omegas[0], config.R, config.L, config.C),
+    #                              radius=config.radius, width=config.width,
+    #                              cutoff_distance=preconditioner_cutoff,
+    #                              model='quasistatic', omega=None)
 
     for i, omega in enumerate(tqdm(omegas)):
         M_0 = self_inductance(omega, config.R, config.L, config.C)
@@ -59,11 +65,12 @@ def solve_system(config: SimulationConfig, geometry: Geometry, *, use_preconditi
         system = LinearOperator(shape=(n_rings, n_rings), matvec=matvec, dtype=np.complex128)
         if use_preconditioner:
             P = build_preconditioner(geometry.centers, spacings, geometry.orientations, M_0,
-                                     radius=config.radius, width=config.width,
-                                     cutoff_distance=preconditioner_cutoff,
-                                     model=config.interaction_model, omega=float(omega))
+                                    radius=config.radius, width=config.width,
+                                    cutoff_distance=preconditioner_cutoff,
+                                    model=config.interaction_model, omega=float(omega))
+            #P = np.ones((n_rings))/M_0
             preconditioned_system = LinearOperator(shape=(n_rings, n_rings),
-                                                   matvec=lambda x: system @( P @ x), dtype=np.complex128)
+                                                   matvec=lambda x: system @(P @ x), dtype=np.complex128)
         else:
             preconditioned_system = system
         solution, info = gmres(preconditioned_system, rhs, x0=x0, rtol=1e-10, atol=0.0)
@@ -77,5 +84,5 @@ def solve_system(config: SimulationConfig, geometry: Geometry, *, use_preconditi
                 f"GMRES failed for omega={omega}, info={info}."
             )
         x0 = solution
-        currents[:, i] = P @ solution if use_preconditioner else solution
+        currents[:, i] = P * solution if use_preconditioner else solution
     return currents

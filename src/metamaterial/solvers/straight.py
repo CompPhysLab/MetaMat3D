@@ -27,7 +27,7 @@ def solve_system(config: SimulationConfig, geometry: Geometry) -> ComplexArray:
     '''
     omegas = np.asarray(config.omegas, dtype=np.float64)
     normals = orientation_normals(geometry.orientations)
-    spacings = [config.Dx, config.Dy, config.Dz]
+    spacings =np.asarray([config.Dx, config.Dy, config.Dz], dtype=np.float64)
 
     currents = np.zeros((len(geometry.centers), len(omegas)),dtype=np.complex128)
 
