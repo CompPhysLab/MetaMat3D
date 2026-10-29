@@ -28,7 +28,7 @@ def solve_system(config: SimulationConfig, geometry: Geometry, *, use_preconditi
     normals = orientation_normals(geometry.orientations)
     n_rings = len(geometry.centers)
     spacings = np.asarray([config.Dx, config.Dy, config.Dz], dtype=np.float64)
-    preconditioner_cutoff = 2
+    preconditioner_cutoff = 0
     currents = np.zeros((n_rings, len(omegas)), dtype=np.complex128)
 
     x0 = None

@@ -149,7 +149,7 @@ class SimulationConfig:
             ("Ny", self.Ny),
             ("Nz", self.Nz),
         ):
-            if isinstance(value, bool) or not isinstance(value, np.int16):
+            if isinstance(value, bool) or not isinstance(value, int):
                 raise TypeError(f"{name} must be an integer")
 
             if value <= 0:
