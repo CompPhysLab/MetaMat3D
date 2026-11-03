@@ -90,11 +90,14 @@ def test_full_retarded_mutual_inductance_matrices_match_on_4x4x4():
     )
 
     assert geometry.centers.shape == (36, 3)
-    np.testing.assert_allclose(geometry.centers, legacy_centers)
+    spacings = np.array([config.Dx, config.Dy, config.Dz])
+    physical_centers = geometry.centers * spacings / 2
+    np.testing.assert_allclose(physical_centers, legacy_centers)
     np.testing.assert_array_equal(geometry.orientations, legacy_orientations)
 
     new_matrix = mutual_inductance_matrix(
         geometry.centers,
+        spacings,
         geometry.orientations,
         radius=config.radius,
         width=config.width,

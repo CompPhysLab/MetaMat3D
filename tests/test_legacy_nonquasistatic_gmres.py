@@ -9,21 +9,35 @@ from scipy.linalg import solve
 from scipy.sparse.linalg import LinearOperator, gmres
 
 
-def _legacy_modules():
+def _legacy_modules(monkeypatch):
     code_directory = str(Path(__file__).resolve().parents[1] / "Code")
     sys.path.insert(0, code_directory)
     try:
-        from Fast_Method import Circvec, fft_dot
+        import Fast_Method
         from Geometry import Rectangle_packing, to3D
-        from Retr_matrix import Matrix
+        import Retr_matrix_patched
     finally:
         sys.path.remove(code_directory)
-    return Circvec, fft_dot, Rectangle_packing, to3D, Matrix
+
+    monkeypatch.setitem(
+        Fast_Method.Mnms,
+        "Mie_True",
+        Retr_matrix_patched.Mnm,
+    )
+    return (
+        Fast_Method.Circvec,
+        Fast_Method.fft_dot,
+        Rectangle_packing,
+        to3D,
+        Retr_matrix_patched.Matrix,
+    )
 
 
-def test_legacy_nonquasistatic_fft_and_gmres_forms_match_dense_solution():
+def test_legacy_nonquasistatic_fft_and_gmres_forms_match_dense_solution(
+    monkeypatch,
+):
     circvec, fft_dot, rectangle_packing, to3d, dense_matrix = (
-        _legacy_modules()
+        _legacy_modules(monkeypatch)
     )
 
     omega = 2 * np.pi * 1e8

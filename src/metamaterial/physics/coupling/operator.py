@@ -151,6 +151,13 @@ def mutual_inductance(*, displacement: IntArray, spacings: FloatArray,
     complex
         Mutual inductance between the two rings
     """
+    displacement = np.asarray(displacement, dtype=np.float64)
+    spacings = np.asarray(spacings, dtype=np.float64)
+    if displacement.shape != (3,):
+        raise ValueError("displacement must have shape (3,)")
+    if spacings.shape != (3,):
+        raise ValueError("spacings must have shape (3,)")
+
     dx, dy, dz = displacement * spacings / 2
     if dx == 0.0 and dy == 0.0 and dz == 0.0:
         return 0.0 + 0.0j

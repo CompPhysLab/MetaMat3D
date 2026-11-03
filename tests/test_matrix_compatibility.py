@@ -87,11 +87,14 @@ def test_final_system_matrices_match_legacy_code():
         dtype="<U1",
     )
 
-    np.testing.assert_allclose(geometry.centers, legacy_centers)
+    spacings = np.array([config.Dx, config.Dy, config.Dz])
+    physical_centers = geometry.centers * spacings / 2
+    np.testing.assert_allclose(physical_centers, legacy_centers)
     np.testing.assert_array_equal(geometry.orientations, legacy_orientations)
 
     modern_mutual = mutual_inductance_matrix(
         geometry.centers,
+        spacings,
         geometry.orientations,
         radius=radius,
         width=width,
