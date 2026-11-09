@@ -14,7 +14,7 @@ from src.pytorch_version.solvers import fast as torch_fast
 from src.pytorch_version.solvers import straight as torch_straight
 
 
-MODELS = ("quasistatic", "full_retarded")
+MODELS = ("quasistatic", "full_retarded", "approx_retarded")
 SOLVERS = (
     ("straight", numpy_straight.solve_system, torch_straight.solve_system),
     ("fast", numpy_fast.solve_system, torch_fast.solve_system),

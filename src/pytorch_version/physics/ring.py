@@ -1,9 +1,7 @@
-"""Torch electrical response of split-ring resonators."""
+"""Electrical response of split-ring resonators."""
 
 import torch
-
 Tensor = torch.Tensor
-
 
 def _frequency_tensor(
     omega: float | Tensor,

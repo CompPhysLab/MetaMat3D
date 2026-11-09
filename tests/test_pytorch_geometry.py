@@ -32,7 +32,7 @@ def test_geometry_builds_tensors_on_requested_device(device):
     geometry = build_geometry(make_config(orientations="z"), device=device)
 
     assert isinstance(geometry.centers, torch.Tensor)
-    assert geometry.centers.dtype == torch.int64
+    assert geometry.centers.dtype == torch.int16
     assert geometry.centers.device.type == device
     assert geometry.centers.shape == (8, 3)
     assert geometry.orientations == ("z",) * 8
@@ -40,7 +40,7 @@ def test_geometry_builds_tensors_on_requested_device(device):
         geometry.centers[:4],
         torch.tensor(
             [[1, 1, 1], [3, 1, 1], [1, 3, 1], [3, 3, 1]],
-            dtype=torch.int64,
+            dtype=torch.int16,
             device=device,
         ),
     )
@@ -62,7 +62,7 @@ def test_geometry_preserves_orientation_specific_lattice_counts(
     )
 
     assert geometry.centers.shape == (expected_count, 3)
-    assert geometry.centers.dtype == torch.int64
+    assert geometry.centers.dtype == torch.int16
     assert geometry.orientations == (orientation,) * expected_count
 
 
@@ -76,11 +76,13 @@ def test_geometry_preserves_requested_orientation_block_order():
 def test_orientation_normals_returns_tensor_on_requested_device():
     normals = orientation_normals(("z", "x", "y"), device="cpu")
 
-    assert normals.dtype == torch.int64
+    assert normals.dtype == torch.int16
     assert normals.device.type == "cpu"
     torch.testing.assert_close(
         normals,
-        torch.tensor([[0, 0, 1], [1, 0, 0], [0, 1, 0]]),
+        torch.tensor(
+            [[0, 0, 1], [1, 0, 0], [0, 1, 0]], dtype=torch.int16
+        ),
     )
 
 

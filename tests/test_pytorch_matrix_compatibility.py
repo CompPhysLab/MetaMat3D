@@ -24,7 +24,7 @@ from src.pytorch_version.physics import (
 )
 
 
-MODELS = ("quasistatic", "full_retarded")
+MODELS = ("quasistatic", "full_retarded", "approx_retarded")
 
 
 def _config(config_type, model):

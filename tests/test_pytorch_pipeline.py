@@ -52,7 +52,9 @@ def available_devices():
 
 
 @pytest.mark.parametrize("device", available_devices())
-@pytest.mark.parametrize("model", ["quasistatic", "full_retarded"])
+@pytest.mark.parametrize(
+    "model", ["quasistatic", "full_retarded", "approx_retarded"]
+)
 def test_torch_direct_and_gmres_solvers_agree(device, model):
     config = make_config(model=model)
     geometry = build_geometry(config, device=device)
@@ -108,20 +110,6 @@ def test_torch_physics_outputs_stay_on_device(device):
     assert torch.isfinite(coupling)
 
 
-def test_torch_approx_retarded_reports_unported_backend():
-    with pytest.raises(NotImplementedError, match="has not yet been ported"):
-        mutual_inductance(
-            displacement=(3e-3, 0.0, 0.0),
-            r1=1e-3,
-            r2=1e-3,
-            width=0.0,
-            orientation1="z",
-            orientation2="z",
-            model="approx_retarded",
-            omega=1e8,
-        )
-
-
 def test_torch_full_retarded_coupling_matches_legacy_quadrature():
     displacement = (0.0, 0.0, 3e-3)
     omega = 1e8
@@ -147,7 +135,9 @@ def test_torch_full_retarded_coupling_matches_legacy_quadrature():
 
 @pytest.mark.parametrize("device", available_devices())
 @pytest.mark.parametrize("meta_atom_type", ["center", "border", "open"])
-@pytest.mark.parametrize("model", ["quasistatic", "full_retarded"])
+@pytest.mark.parametrize(
+    "model", ["quasistatic", "full_retarded", "approx_retarded"]
+)
 def test_torch_fft_operator_matches_dense_matrix(device, meta_atom_type, model):
     config = make_config(model=model)
     config = SimulationConfig(

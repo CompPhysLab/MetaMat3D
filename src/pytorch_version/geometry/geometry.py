@@ -1,5 +1,4 @@
 """Generation of ordered ring-center geometry."""
-
 from dataclasses import dataclass
 
 import torch
@@ -8,8 +7,6 @@ from .packings import get_packing_rule
 Tensor = torch.Tensor
 Orientation = str
 
-_ALLOWED_TYPES = {"border", "open", "center"}
-_ALLOWED_ORIENTATIONS = {"z", "y", "x"}
 _AXIS_INDEX = {"x": 0, "y": 1, "z": 2}
 
 
@@ -17,9 +14,7 @@ _AXIS_INDEX = {"x": 0, "y": 1, "z": 2}
 class Geometry:
     """Ordered geometry consumed by the solvers.
 
-    ``centers`` stores doubled lattice coordinates in physical x/y/z order.
-    Orientation labels remain strings because PyTorch tensors do not support
-    string values; numeric geometry and masks are tensors on the selected device.
+    centers stores doubled lattice coordinates in physical x/y/z order.
     """
 
     centers: Tensor
@@ -27,14 +22,10 @@ class Geometry:
 
     def __post_init__(self) -> None:
         n = self.centers.shape[0]
-        if self.centers.ndim != 2 or self.centers.shape != (n, 3):
+        if self.centers.shape != (n, 3):
             raise ValueError("centers must have shape (N, 3)")
-        if self.centers.dtype != torch.int64:
-            raise TypeError("centers must have dtype torch.int64")
         if len(self.orientations) != n:
             raise ValueError("orientations must have shape (N,)")
-        if any(orientation not in _ALLOWED_ORIENTATIONS for orientation in self.orientations):
-            raise ValueError("orientations must contain only 'x', 'y', or 'z'")
 
 
 def _coordinates_for_orientation(
@@ -45,21 +36,17 @@ def _coordinates_for_orientation(
     device: torch.device,
 ) -> tuple[Tensor, ...]:
     """Build doubled lattice-coordinate axes for one ring orientation."""
-    if orientation not in _ALLOWED_ORIENTATIONS:
-        raise ValueError(f"Unsupported orientation {orientation!r}")
-    if type not in _ALLOWED_TYPES:
-        raise ValueError(f"Unsupported type {type!r}")
-
     normal_axis = _AXIS_INDEX[orientation]
     coord_axes = []
 
-    for axis, count in enumerate(counts):
+    for axis in range(3):
+        count = counts[axis]
         if axis != normal_axis or type == "center":
-            coordinates = 2 * torch.arange(count, dtype=torch.int64, device=device) + 1
+            coordinates = 2 * torch.arange(count, dtype=torch.int16, device=device) + 1
         elif type == "border":
-            coordinates = 2 * torch.arange(count + 1, dtype=torch.int64, device=device)
+            coordinates = 2 * torch.arange(count + 1, dtype=torch.int16, device=device)
         else:
-            coordinates = 2 * torch.arange(1, count, dtype=torch.int64, device=device)
+            coordinates = 2 * torch.arange(1, count, dtype=torch.int16, device=device)
 
         coord_axes.append(coordinates)
 
@@ -67,7 +54,7 @@ def _coordinates_for_orientation(
 
 
 def _flatten_fortran_order(grid: Tensor) -> Tensor:
-    """Flatten a 3D x/y/z grid with the x axis varying fastest."""
+    """Flatten a 3D i/j/k grid with the i axis varying fastest (Fortran order)."""
     return grid.permute(2, 1, 0).reshape(-1)
 
 
@@ -90,12 +77,12 @@ def build_geometry(
         coord_axes = _coordinates_for_orientation(
             orientation, type, counts, device=target_device
         )
-        x, y, z = torch.meshgrid(*coord_axes, indexing="ij")
+        i, j, k = torch.meshgrid(*coord_axes, indexing="ij")
         centers = torch.stack(
             (
-                _flatten_fortran_order(x),
-                _flatten_fortran_order(y),
-                _flatten_fortran_order(z),
+                _flatten_fortran_order(i),
+                _flatten_fortran_order(j),
+                _flatten_fortran_order(k),
             ),
             dim=1,
         )
@@ -114,7 +101,7 @@ def build_geometry(
             for orientation in block
         )
     else:
-        centers = torch.empty((0, 3), dtype=torch.int64, device=target_device)
+        centers = torch.empty((0, 3), dtype=torch.int16, device=target_device)
         ring_orientations = ()
 
     return Geometry(centers=centers, orientations=ring_orientations)
@@ -128,16 +115,13 @@ def orientation_normals(
     """Convert orientation labels to Cartesian unit-normal tensors."""
     target_device = torch.device(device) if device is not None else torch.device("cpu")
     axis_indices = {"x": 0, "y": 1, "z": 2}
-    try:
-        indices = [axis_indices[orientation] for orientation in orientations]
-    except KeyError as exc:
-        raise ValueError(f"Unsupported orientation {exc.args[0]!r}") from exc
+    indices = [axis_indices[orientation] for orientation in orientations]
 
     normals = torch.zeros(
-        (len(indices), 3), dtype=torch.int64, device=target_device
+        (len(indices), 3), dtype=torch.int16, device=target_device
     )
     if indices:
-        rows = torch.arange(len(indices), device=target_device)
-        columns = torch.tensor(indices, dtype=torch.int64, device=target_device)
+        rows = torch.arange(len(indices), dtype=torch.long, device=target_device)
+        columns = torch.tensor(indices, dtype=torch.long, device=target_device)
         normals[rows, columns] = 1
     return normals

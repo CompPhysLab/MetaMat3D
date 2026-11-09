@@ -1,394 +1,335 @@
+"""Electrical response / recurrent inductance for parallel and orthogonal rings (Pure PyTorch version)."""
+
 from functools import lru_cache
-import numpy as np
-from scipy.interpolate import BarycentricInterpolator
-from scipy import special
 
-c=3e8
+import torch
 
-#functions for numerical computation of recurrent inductance for parallel and orthogonal oriented rings
+Tensor = torch.Tensor
+C = 3e8
+
+
+class BarycentricInterpolator:
+    """Evaluate a polynomial interpolant using the second barycentric formula."""
+
+    def __init__(self, xi: Tensor, yi: Tensor, dim: int = -1):
+        if xi.ndim != 1 or xi.numel() == 0:
+            raise ValueError("xi must be a non-empty one-dimensional tensor")
+        if yi.ndim == 0:
+            raise ValueError("yi must have an interpolation dimension")
+
+        self.xi = xi.detach().to(dtype=torch.float64)
+        self.yi = yi
+        self.dim = dim % yi.ndim
+        if yi.shape[self.dim] != xi.numel():
+            raise ValueError("xi and yi lengths do not match")
+        if yi.device != xi.device:
+            raise ValueError("xi and yi must be on the same device")
+
+        differences = self.xi[:, None] - self.xi[None, :]
+        differences.diagonal().fill_(1.0)
+        if torch.any(differences == 0):
+            raise ValueError("xi values must be distinct")
+
+        log_weights = -torch.log(torch.abs(differences)).sum(dim=1)
+        signs = torch.sign(differences).prod(dim=1)
+        self.wi = signs * torch.exp(log_weights - log_weights.max())
+
+    def __call__(self, x: Tensor) -> Tensor:
+        x = torch.as_tensor(x, dtype=torch.float64, device=self.xi.device)
+        x_flat = x.reshape(-1)
+        differences = x_flat[:, None] - self.xi[None, :]
+        exact_match = differences == 0
+        safe_differences = torch.where(
+            exact_match, torch.ones_like(differences), differences
+        )
+        terms = self.wi[None, :] / safe_differences
+
+        yi_shifted = torch.movedim(self.yi, self.dim, -1)
+        terms_for_values = terms.to(dtype=yi_shifted.dtype)
+        numerator = torch.matmul(yi_shifted, terms_for_values.mT)
+        denominator = terms.sum(dim=1).to(dtype=yi_shifted.dtype)
+        result = numerator / denominator
+
+        exact_rows = exact_match.any(dim=1)
+        if exact_rows.any():
+            node_indices = exact_match.to(torch.int64).argmax(dim=1)
+            exact_values = yi_shifted[..., node_indices]
+            mask = exact_rows.reshape((1,) * (yi_shifted.ndim - 1) + (-1,))
+            result = torch.where(mask, exact_values, result)
+
+        result = result.reshape((*yi_shifted.shape[:-1], *x.shape))
+        return torch.movedim(result, -1, self.dim) if x.ndim else result
+
+
 @lru_cache(maxsize=None)
-def diff_theta(N:int) -> tuple[np.ndarray, np.ndarray]:
-    '''Computes the differentiation matrix and the Chebyshev nodes
-    
-    Parameters
-    ----------
-    N : int
-        Number of Chebyshev nodes minus one (N+1 nodes in total)
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        tuple containing the Chebyshev nodes and the differentiation matrix
-    '''
-    theta = np.pi * np.arange(N + 1) / N
-    u = np.cos(theta)
-    const = np.ones(N + 1)
+def diff_theta(N: int, device: torch.device = torch.device("cpu")) -> tuple[Tensor, Tensor]:
+    """Computes the differentiation matrix and the Chebyshev nodes (PyTorch)."""
+    theta = torch.pi * torch.arange(N + 1, dtype=torch.float64, device=device) / N
+    u = torch.cos(theta)
+    const = torch.ones(N + 1, dtype=torch.float64, device=device)
     const[0] = 2.0
     const[N] = 2.0
-    const *= (-1.0) ** np.arange(N + 1)
-    X = np.tile(u, (N + 1, 1))
+    const *= (-1.0) ** torch.arange(N + 1, dtype=torch.float64, device=device)
+    X = u.repeat(N + 1, 1)
     dX = X.T - X
-    D = np.outer(const, 1.0 / const) / (dX + np.eye(N + 1))
-    D -= np.diag(D.sum(axis=1))
+    D = torch.outer(const, 1.0 / const) / (dX + torch.eye(N + 1, dtype=torch.float64, device=device))
+    D -= torch.diag(D.sum(dim=1))
     return u, D
 
-def compute_ln_par(r_1: float, r_2: float, k: float, N_max: int, N_theta=200) -> tuple[np.ndarray, dict[int, np.ndarray]]:
-    '''Computes the Ln modes for parallel-oriented rings
 
-    Parameters
-    ----------
-    r_1 : float
-        Radius of the first ring
-    r_2 : float
-        Radius of the second ring
-    k : float
-        Wavenumber
-    N_max : int
-        Maximum number of modes to compute
-    N_theta : int, optional
-        Number of Chebyshev nodes, by default 200
-
-    Returns
-    -------
-    tuple[np.ndarray, dict[int, np.ndarray]]
-        tuple containing the Chebyshev nodes and a dictionary of the Ln modes
-    '''
-    u, D = diff_theta(N_theta)
+def compute_ln_par(
+    r_1: float,
+    r_2: float,
+    k: float,
+    N_max: int,
+    N_theta: int = 200,
+    device: torch.device = torch.device("cpu"),
+) -> tuple[Tensor, dict[int, Tensor]]:
+    """Computes the Ln modes for parallel-oriented rings."""
+    u, D = diff_theta(N_theta, device=device)
     D2 = D @ D
-    B = np.diag(1.0 - u**2) @ D2 - 2.0 * np.diag(u) @ D
-    sinth = np.sqrt(np.maximum(1.0 - u**2, 0.0))
-    L1 = np.pi * r_1 * r_2 * special.jv(1, k * r_1 * sinth) * special.jv(1, k * r_2 * sinth)
-    Ln_data = {1: L1.astype(complex)}
+    B = torch.diag(1.0 - u**2) @ D2 - 2.0 * torch.diag(u) @ D
+    sinth = torch.sqrt(torch.clamp(1.0 - u**2, min=0.0))
+
+    j1_1 = torch.special.bessel_j1(k * r_1 * sinth)
+    j1_2 = torch.special.bessel_j1(k * r_2 * sinth)
+
+    L1 = torch.pi * r_1 * r_2 * j1_1 * j1_2
+    Ln_data = {1: L1.to(torch.complex128)}
+
     for n in range(1, N_max):
         Ln = Ln_data[n]
-        BLn = B @ Ln
-        Ln_data[n + 1] = ((n-1) * Ln + (1.0 / n) * BLn) / (2j * k)
+        BLn = B.to(torch.complex128) @ Ln
+        Ln_data[n + 1] = ((n - 1) * Ln + (1.0 / n) * BLn) / (2j * k)
+
     return u, Ln_data
 
-def ln_interpolators_par(u_grid: np.ndarray, Ln_data: dict[int, np.ndarray]) -> dict[int, callable]:
-    '''Creates interpolators for the Ln modes of parallel-oriented rings
-    
-    Parameters
-    ----------
-    u_grid : np.ndarray
-        Chebyshev nodes
-    Ln_data : dict[int, np.ndarray]
-        Dictionary of the Ln modes
 
-    Returns
-    -------
-    dict[int, callable]
-        Dictionary of the interpolators for each Ln mode
-    '''
+def ln_interpolators_par(u_grid: Tensor, Ln_data: dict[int, Tensor]) -> dict[int, BarycentricInterpolator]:
+    """Creates interpolators for the Ln modes of parallel-oriented rings."""
     interpolators = {}
     for n, vals in Ln_data.items():
-        interp_re = BarycentricInterpolator(u_grid, vals.real)
-        interp_im = BarycentricInterpolator(u_grid, vals.imag)
-        interpolators[n] = (
-            lambda th, _re=interp_re, _im=interp_im:
-                _re(np.cos(th)) + 1j * _im(np.cos(th))
-                )
+        interpolators[n] = BarycentricInterpolator(u_grid, vals, dim=-1)
     return interpolators
 
-def L_cached_par(N: int, r: float, k: float, theta: float, ln_interps: dict[int, callable]) -> complex:
-    '''Computes the total inductance for a parallel-oriented ring configuration
 
-    Parameters
-    ----------
-    N : int
-        Number of modes to include in the computation
-    r : float
-        Distance between the centers of the rings
-    k : float
-        Wavenumber
-    theta : float
-        Angle at which to evaluate the inductance
-    ln_interps : dict[int, callable]
-        Dictionary of interpolators for each Ln mode
+def L_cached_par(
+    N: int,
+    r: float,
+    k: float,
+    theta: float | Tensor,
+    ln_interps: dict[int, BarycentricInterpolator],
+    device: torch.device,
+) -> Tensor:
+    """Computes total inductance for parallel-oriented rings."""
+    theta_tensor = torch.as_tensor(theta, dtype=torch.float64, device=device)
+    distance = torch.as_tensor(r, dtype=torch.float64, device=device)
+    total = torch.zeros_like(distance, dtype=torch.complex128)
+    exp_term = torch.polar(torch.ones_like(distance), k * distance)
+    u = torch.cos(theta_tensor)
 
-    Returns
-    -------
-    complex
-        Total inductance at the specified angle
-    '''
-    total = 0.0 + 0j
     for i in range(1, N + 1):
-        total += ln_interps[i](theta) / (r ** i)*np.exp(1j * k * r)
+        val = ln_interps[i](u)
+        total = total + val / distance**i * exp_term
     return total
 
-def compute_Fnm_modes(r_1: float, r_2: float, k: float, N_max: int, N_theta=200, M_modes=5) -> tuple[np.ndarray, dict[int, dict[int, np.ndarray]]]:
-    '''Computes the Fnm modes for orthogonal-oriented rings
-    
-    Parameters
-    ----------
-    r_1 : float
-        Radius of the first ring
-    r_2 : float
-        Radius of the second ring
-    k : float
-        Wavenumber
-    N_max : int
-        Maximum number of modes to include in the computation
-    N_theta : int, optional
-        Number of theta points, by default 200
-    M_modes : int, optional
-        Number of phi modes to include in the computation, by default 5
-
-    Returns
-    -------
-    tuple[np.ndarray, dict[int, dict[int, np.ndarray]]]
-        Chebyshev nodes and the Fnm modes
-    '''
-    u, D = diff_theta(N_theta)
+def compute_Fnm_modes(
+    r_1: float,
+    r_2: float,
+    k: float,
+    N_max: int,
+    N_theta: int = 200,
+    M_modes: int = 5,
+    device: torch.device = torch.device("cpu"),
+) -> tuple[Tensor, dict[int, dict[int, Tensor]]]:
+    """Computes the Fnm modes for orthogonal-oriented rings (Pure PyTorch)."""
+    u, D = diff_theta(N_theta, device=device)
     N = N_theta
     D2 = D @ D
-    sinth = np.sqrt(np.maximum(1.0 - u**2, 0.0))
+    sinth = torch.sqrt(torch.clamp(1.0 - u**2, min=0.0))
     cos_th = u
     N_phi = 2 * M_modes + 3
-    phi_grid = np.linspace(0, 2*np.pi, N_phi, endpoint=False)
-    L1_grid = np.zeros((N+1, N_phi), dtype=complex)
+
+    phi_grid = (
+        2.0
+        * torch.pi
+        * torch.arange(N_phi, dtype=torch.float64, device=device)
+        / N_phi
+    )
+    L1_grid = torch.zeros((N + 1, N_phi), dtype=torch.complex128, device=device)
+
     for j, phi in enumerate(phi_grid):
-        sin_phi = np.sin(phi)
+        sin_phi = torch.sin(phi)
         sin2_th = sinth**2
-        under = np.sqrt(np.maximum(1.0 - sin2_th * sin_phi**2, 0.0))
-        L1_grid[:, j] = -np.pi * r_1 * r_2 * (sin_phi * cos_th / under) \
-                        * special.jv(1, k * r_1 * sinth) * special.jv(1, k * r_2 * under)
-    L1_modes = np.fft.fft(L1_grid, axis=1) / N_phi
+        under = torch.sqrt(torch.clamp(1.0 - sin2_th * sin_phi**2, min=0.0))
+
+        j1_1 = torch.special.bessel_j1(k * r_1 * sinth)
+        j1_2 = torch.special.bessel_j1(k * r_2 * under)
+
+        L1_grid[:, j] = -torch.pi * r_1 * r_2 * (sin_phi * cos_th / under) * j1_1 * j1_2
+
+    L1_modes = torch.fft.fft(L1_grid, dim=1) / N_phi
+
     F_data = {}
     for m in range(-M_modes, M_modes + 1):
         abs_m = abs(m)
-        B_m = (np.diag(1.0 - u**2) @ D2 
-               - 2.0 * np.diag(u * (abs_m + 1)) @ D
-               - abs_m * (abs_m + 1) * np.eye(N + 1))
-        if m >= 0:
-            idx = m
-        else:
-            idx = N_phi + m
+        B_m = (
+            torch.diag(1.0 - u**2) @ D2
+            - 2.0 * torch.diag(u * (abs_m + 1)) @ D
+            - abs_m * (abs_m + 1) * torch.eye(N + 1, dtype=torch.float64, device=device)
+        )
+        idx = m if m >= 0 else N_phi + m
         L1_m = L1_modes[:, idx]
         w = (1.0 - u**2) ** (abs_m / 2.0)
-        F1_m = np.zeros(N + 1, dtype=complex)
+
+        F1_m = torch.zeros(N + 1, dtype=torch.complex128, device=device)
         F1_m[1:-1] = L1_m[1:-1] / w[1:-1]
+
         if abs_m > 0:
-            interp = BarycentricInterpolator(u[1:-1], F1_m[1:-1])
-            F1_m[0]  = interp(u[0])
+            interp = BarycentricInterpolator(u[1:-1], F1_m[1:-1], dim=0)
+            F1_m[0] = interp(u[0])
             F1_m[-1] = interp(u[-1])
         else:
-            F1_m = L1_m.copy()
+            F1_m = L1_m.clone()
+
         F_data[m] = {1: F1_m}
         for n in range(1, N_max):
             Fn = F_data[m][n]
-            BFn = B_m @ Fn
+            BFn = B_m.to(torch.complex128) @ Fn
             F_data[m][n + 1] = ((n - 1) * Fn + (1.0 / n) * BFn) / (2j * k)
+
     return u, F_data
 
-def make_F_interpolators(u_grid: np.ndarray, F_data: dict[int, dict[int, np.ndarray]]) -> dict[int, dict[int, BarycentricInterpolator]]:
-    '''Creates interpolators for the Fnm modes of orthogonal-oriented rings
-    
-    Parameters
-    ----------
-    u_grid : np.ndarray
-        Chebyshev nodes
-    F_data : dict[int, dict[int, np.ndarray]]
-        Fnm modes
 
-    Returns
-    -------
-    dict[int, dict[int, BarycentricInterpolator]]
-        Interpolators for the Fnm modes
-    '''
+def make_F_interpolators(
+    u_grid: Tensor,
+    F_data: dict[int, dict[int, Tensor]],
+) -> dict[int, dict[int, BarycentricInterpolator]]:
+    """Creates interpolators for the Fnm modes using BarycentricInterpolator."""
     interpolators = {}
     for m, n_data in F_data.items():
         interpolators[m] = {}
         for n, Fn in n_data.items():
-            interpolators[m][n] = BarycentricInterpolator(u_grid, Fn)
+            interpolators[m][n] = BarycentricInterpolator(u_grid, Fn, dim=0)
     return interpolators
 
-def Ln_at_point(interpolators: dict[int, dict[int, BarycentricInterpolator]], m_modes: int, theta: float, phi: float, n: int) -> complex:
-    '''Evaluates the Ln mode at a specific point (theta, phi) using the interpolators
 
-    Parameters
-    ----------
-    interpolators : dict[int, dict[int, BarycentricInterpolator]]
-        Interpolators for the Fnm modes
-    m_modes : int
-        Number of modes
-    theta : float
-        Polar angle
-    phi : float
-        Azimuthal angle
-    n : int
-        Mode number
+def Ln_at_point(
+    interpolators: dict[int, dict[int, BarycentricInterpolator]],
+    m_modes: int,
+    theta: float | Tensor,
+    phi: float | Tensor,
+    n: int,
+    device: torch.device,
+) -> Tensor:
+    """Evaluates the Ln mode at a specific point (theta, phi)."""
+    th_tensor = torch.as_tensor(theta, dtype=torch.float64, device=device)
+    phi_tensor = torch.as_tensor(phi, dtype=torch.float64, device=device)
 
-    Returns
-    -------
-    complex
-        Value of the Ln mode at the specified point
-    '''
+    u = torch.cos(th_tensor)
+    result = torch.zeros_like(u, dtype=torch.complex128)
 
-    u = np.cos(theta)
-    result = 0.0 + 0.0j
     for m in range(-m_modes, m_modes + 1):
         abs_m = abs(m)
         F_val = interpolators[m][n](u)
         w = (1.0 - u**2) ** (abs_m / 2.0)
-        result += (w* F_val* np.exp(1j * m * phi))
+        phase = torch.polar(torch.ones_like(phi_tensor), m * phi_tensor)
+        result = result + w * F_val * phase
+
     return result
 
-def L_cached_ort(N: int, r: float, k: float, theta: float, phi: float, interpolators: dict[int, dict[int, BarycentricInterpolator]], m_modes: int):
-    '''Computes the total inductance for an orthogonal-oriented ring configuration
 
-    Parameters
-    ----------
-    N : int
-        Number of modes
-    r : float
-        Distance between the centers of the rings
-    k : float
-        Wavenumber
-    theta : float
-        Polar angle
-    phi : float
-        Azimuthal angle
-    interpolators : dict[int, dict[int, BarycentricInterpolator]]
-        Interpolators for the Fnm modes
-    m_modes : int
-        Number of m modes
+def L_cached_ort(
+    N: int,
+    r: float,
+    k: float,
+    theta: float | Tensor,
+    phi: float | Tensor,
+    interpolators: dict[int, dict[int, BarycentricInterpolator]],
+    m_modes: int,
+    device: torch.device,
+) -> Tensor:
+    """Computes total inductance for orthogonal-oriented rings."""
+    distance = torch.as_tensor(r, dtype=torch.float64, device=device)
+    total = torch.zeros_like(distance, dtype=torch.complex128)
+    exp_term = torch.polar(torch.ones_like(distance), k * distance)
 
-    Returns
-    -------
-    complex
-        Total inductance for the orthogonal-oriented ring configuration
-    '''
-    total = 0.0 + 0.0j
     for n in range(1, N + 1):
-        Ln = Ln_at_point(interpolators, m_modes, theta, phi, n)
-        total += Ln / r**n *np.exp(1j * k * r)
+        Ln = Ln_at_point(interpolators, m_modes, theta, phi, n, device=device)
+        total = total + Ln / distance**n * exp_term
+
     return total
 
-#cache for recurrent interpolators, keyed by (r1, r2, k, N)
 _recurrent_cache_par = {}
 _recurrent_cache_ort = {}
 
-def _get_recurrent_interps_par(r1: float, r2: float, k: float, N: int) -> dict[int, callable]:
-    '''Saves cached interpolators for the Ln modes of parallel-oriented rings
 
-    Parameters
-    ----------
-    r1 : float
-        Radius of the first ring
-    r2 : float
-        Radius of the second ring
-    k : float
-        Wavenumber
-    N : int
-        Number of modes
-
-    Returns
-    -------
-    dict[int, callable]
-        Interpolators for the Ln modes  
-    '''
-    key = (r1, r2, k, N)
+def _get_recurrent_interps_par(r1: float, r2: float, k: float, N: int, device: torch.device) -> dict[int, BarycentricInterpolator]:
+    key = (r1, r2, k, N, str(device))
     if key not in _recurrent_cache_par:
-        u_grid, ln_data = compute_ln_par(r1, r2, k, N)
+        u_grid, ln_data = compute_ln_par(r1, r2, k, N, device=device)
         _recurrent_cache_par[key] = ln_interpolators_par(u_grid, ln_data)
     return _recurrent_cache_par[key]
 
-def _get_recurrent_interps_ort(r1: float, r2: float, k: float, N: int, M: int = 5) -> dict[int, callable]:
-    '''Saves cached interpolators for the Fnm modes of orthogonal-oriented rings
 
-    Parameters
-    ----------
-    r1 : float
-        Radius of the first ring
-    r2 : float
-        Radius of the second ring
-    k : float
-        Wavenumber
-    N : int
-        Number of modes
-    M : int, optional
-        Number of phi modes, by default 5
-
-    Returns
-    -------
-    dict[int, callable]
-        Interpolators for the Fnm modes
-    '''
-    key = (r1, r2, k, N)
+def _get_recurrent_interps_ort(r1: float, r2: float, k: float, N: int, M: int, device: torch.device) -> dict[int, dict[int, BarycentricInterpolator]]:
+    key = (r1, r2, k, N, M, str(device))
     if key not in _recurrent_cache_ort:
-        u_grid, F_data = compute_Fnm_modes(r1, r2, k, N, M_modes=M)
+        u_grid, F_data = compute_Fnm_modes(r1, r2, k, N, M_modes=M, device=device)
         _recurrent_cache_ort[key] = make_F_interpolators(u_grid, F_data)
     return _recurrent_cache_ort[key]
 
-def L_parallel(omega: float, dx:float, dy:float, dz:float, r1:float, r2:float) -> complex:
-    '''Computes the recurrent inductance for a parallel-oriented ring configuration
 
-    Parameters
-    ----------
-    omega : float
-        Angular frequency
-    dx : float
-        Distance between the centers of the rings along the x-axis
-    dy : float
-        Distance between the centers of the rings along the y-axis
-    dz : float
-        Distance between the centers of the rings along the z-axis
-    r1 : float
-        Radius of the first ring
-    r2 : float
-        Radius of the second ring
+def L_parallel(
+    omega: float,
+    dx: float,
+    dy: float,
+    dz: float,
+    r1: float,
+    r2: float,
+    device: torch.device | str = "cpu",
+) -> Tensor:
+    """Computes the recurrent inductance for parallel rings (PyTorch)."""
+    dev = torch.device(device)
+    k = omega / C
+    dx = torch.as_tensor(dx, dtype=torch.float64, device=dev)
+    dy = torch.as_tensor(dy, dtype=torch.float64, device=dev)
+    dz = torch.as_tensor(dz, dtype=torch.float64, device=dev)
+    dist = torch.sqrt(dx**2 + dy**2 + dz**2)
+    db = torch.sqrt(dx**2 + dy**2)
+    theta = torch.atan2(db, dz)
+    N = 2
+    ln_interps = _get_recurrent_interps_par(r1, r2, k, N, device=dev)
+    return L_cached_par(N, dist, k, theta, ln_interps, device=dev)
 
-    Returns
-    -------
-    complex
-        Mutual inductance between two parallel-oriented rings
-    '''
-    k=omega/c
-    dist = np.sqrt(dx ** 2 + dy ** 2+dz**2)
-    db = np.sqrt(dx**2 + dy**2)
-    theta = np.arctan2(db, dz)
-    N = 2 #fixing 2nd order approximation
-    ln_interps = _get_recurrent_interps_par(r1, r2, k, N)
-    return L_cached_par(N, float(dist), k, theta, ln_interps)
 
-def L_orthogonal(omega: float, dx:float, dy:float, dz:float, r1:float, r2:float) -> complex:
-    '''Computes the recurrent inductance for a orthogonal-oriented ring configuration
-
-    Parameters
-    ----------
-    omega : float
-        Angular frequency
-    dx : float
-        Distance between the centers of the rings along the x-axis
-    dy : float
-        Distance between the centers of the rings along the y-axis
-    dz : float
-        Distance between the centers of the rings along the z-axis
-    r1 : float
-        Radius of the first ring
-    r2 : float
-        Radius of the second ring
-
-    Returns
-    -------
-    complex
-        Mutual inductance between two orthogonal-oriented rings
-    '''
-    k=omega/c
-    dist = np.sqrt(dx ** 2 + dy ** 2+dz**2)
-    db = np.sqrt(dx**2 + dy**2)
-    theta = np.arctan2(db, dz)
-    phi = np.arctan2(dy, dx)
-    N = 2 #fixing 2nd order approximation
-    F_interps = _get_recurrent_interps_ort(r1, r2, k, N, M=5)
-    return L_cached_ort(N, float(dist), k, theta, phi, F_interps, 5)
+def L_orthogonal(
+    omega: float,
+    dx: float,
+    dy: float,
+    dz: float,
+    r1: float,
+    r2: float,
+    device: torch.device | str = "cpu",
+) -> Tensor:
+    """Computes the recurrent inductance for orthogonal rings (PyTorch)."""
+    dev = torch.device(device)
+    k = omega / C
+    dx = torch.as_tensor(dx, dtype=torch.float64, device=dev)
+    dy = torch.as_tensor(dy, dtype=torch.float64, device=dev)
+    dz = torch.as_tensor(dz, dtype=torch.float64, device=dev)
+    dist = torch.sqrt(dx**2 + dy**2 + dz**2)
+    db = torch.sqrt(dx**2 + dy**2)
+    theta = torch.atan2(db, dz)
+    phi = torch.atan2(dy, dx)
+    N = 2
+    M = 5
+    F_interps = _get_recurrent_interps_ort(r1, r2, k, N, M, device=dev)
+    return L_cached_ort(N, dist, k, theta, phi, F_interps, M, device=dev)
 
 
 def clear_static_cache():
-    """Clear all cached data (recurrent interpolators)
-    Call when geometry changes between simulations
-    """
+    """Clear all cached data."""
     diff_theta.cache_clear()
     _recurrent_cache_par.clear()
     _recurrent_cache_ort.clear()

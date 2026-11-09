@@ -1,17 +1,13 @@
 """Geometric inclusion rules for ring centers."""
-
 from collections.abc import Callable
-
 import torch
 
 Tensor = torch.Tensor
 PackingRule = Callable[[Tensor, tuple[int, int, int]], Tensor]
 
-
 def rectangle(points: Tensor, counts: tuple[int, int, int]) -> Tensor:
     """Keep all candidate points in the rectangular bounding box."""
     return torch.ones(points.shape[0], dtype=torch.bool, device=points.device)
-
 
 def ellipse(
     points: Tensor,

@@ -1,5 +1,3 @@
-"""Restarted Torch GMRES solver."""
-
 import torch
 from tqdm import tqdm
 

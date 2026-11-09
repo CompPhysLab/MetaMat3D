@@ -6,6 +6,8 @@ from typing import Literal
 
 import torch
 
+from . import approx_retarded
+
 Tensor = torch.Tensor
 InteractionModel = Literal["quasistatic", "full_retarded", "approx_retarded"]
 Orientation = Literal["x", "y", "z"]
@@ -117,15 +119,6 @@ def _mutual_for_pairs(
     model: InteractionModel,
     omega: float | None,
 ) -> Tensor:
-    if model == "approx_retarded":
-        raise NotImplementedError(
-            "The approx_retarded model has not yet been ported to the Torch backend."
-        )
-    if model not in ("quasistatic", "full_retarded"):
-        raise ValueError(f"Unsupported interaction model: {model!r}")
-    if model == "full_retarded" and omega is None:
-        raise ValueError("omega is required for the full_retarded model")
-
     zero_displacement = torch.all(displacement == 0, dim=-1)
     safe_displacement = torch.where(
         zero_displacement[:, None],
@@ -139,11 +132,23 @@ def _mutual_for_pairs(
     parallel, local_displacement = _transform_displacement(
         safe_displacement, orientation1, orientation2
     )
+    if model not in ("quasistatic", "full_retarded", "approx_retarded"):
+        raise ValueError(f"Unsupported interaction model: {model!r}")
+    if model != "quasistatic" and omega is None:
+        raise ValueError(f"omega is required for the {model} model")
     angular_frequency = 0.0 if model == "quasistatic" else float(omega)
+
     if width:
         half_width = width * GAMMA / 2.0
         radii1 = (radius1 - half_width, radius1 + half_width)
         radii2 = (radius2 - half_width, radius2 + half_width)
+        radius_pairs = product(radii1, radii2)
+        radius_weight = 0.25
+    else:
+        radius_pairs = ((radius1, radius2),)
+        radius_weight = 1.0
+
+    if model != "approx_retarded":
         results = [
             _pair_integral(
                 local_displacement,
@@ -153,31 +158,48 @@ def _mutual_for_pairs(
                 quasistatic=model == "quasistatic",
                 omega=angular_frequency,
             )
-            for current_radius1, current_radius2 in product(radii1, radii2)
+            for current_radius1, current_radius2 in radius_pairs
         ]
         value = torch.stack(results).mean(dim=0)
     else:
-        value = _pair_integral(
-            local_displacement,
-            radius1,
-            radius2,
-            parallel=parallel,
-            quasistatic=model == "quasistatic",
-            omega=angular_frequency,
+        distance_squared = torch.sum(local_displacement**2, dim=-1)
+        near = distance_squared < 3 * 15e-3
+        near_indices = torch.nonzero(near, as_tuple=False).flatten()
+        far_indices = torch.nonzero(~near, as_tuple=False).flatten()
+        value = torch.zeros(
+            local_displacement.shape[0],
+            dtype=torch.complex128,
+            device=local_displacement.device,
         )
+        for current_radius1, current_radius2 in radius_pairs:
+            if near_indices.numel():
+                value[near_indices] += radius_weight * _pair_integral(
+                    local_displacement[near_indices],
+                    current_radius1,
+                    current_radius2,
+                    parallel=parallel,
+                    quasistatic=False,
+                    omega=angular_frequency,
+                )
+            if far_indices.numel():
+                far_displacement = local_displacement[far_indices]
+                approximation = (
+                    approx_retarded.L_parallel
+                    if parallel
+                    else approx_retarded.L_orthogonal
+                )
+                value[far_indices] += radius_weight * approximation(
+                    angular_frequency,
+                    far_displacement[:, 0],
+                    far_displacement[:, 1],
+                    far_displacement[:, 2],
+                    current_radius1,
+                    current_radius2,
+                    device=local_displacement.device,
+                )
+
     value = value.to(torch.complex128) * MU_0
     return torch.where(zero_displacement, torch.zeros_like(value), value)
-
-
-def _validate_model(model: InteractionModel, omega: float | None) -> None:
-    if model == "approx_retarded":
-        raise NotImplementedError(
-            "The approx_retarded model has not yet been ported to the Torch backend."
-        )
-    if model not in ("quasistatic", "full_retarded"):
-        raise ValueError(f"Unsupported interaction model: {model!r}")
-    if model == "full_retarded" and omega is None:
-        raise ValueError("omega is required for the full_retarded model")
 
 
 def mutual_inductance(
@@ -195,9 +217,6 @@ def mutual_inductance(
     """Calculate mutual inductance for one pair of rings."""
     target_device = torch.device(device) if device is not None else torch.device("cpu")
     delta = torch.as_tensor(displacement, dtype=torch.float64, device=target_device)
-    if delta.shape != (3,):
-        raise ValueError("displacement must have shape (3,)")
-    _validate_model(model, omega)
     if not torch.count_nonzero(delta).item():
         return torch.zeros((), dtype=torch.complex128, device=target_device)
 
@@ -224,12 +243,6 @@ def mutual_inductance_matrix(
     omega: float | None = None,
 ) -> Tensor:
     """Build the symmetric dense mutual-inductance matrix."""
-    if centers.ndim != 2 or centers.shape[1] != 3:
-        raise ValueError("centers must have shape (N, 3)")
-    if len(orientations) != centers.shape[0]:
-        raise ValueError("orientations must have shape (N,)")
-    _validate_model(model, omega)
-
     device = centers.device
     n_rings = centers.shape[0]
     matrix = torch.zeros(
@@ -331,7 +344,8 @@ def _grid_spec(
             shape.append(max(count - 1, 0))
             start.append(2)
         else:
-            raise ValueError(f"Unsupported meta-atom type {meta_atom_type!r}")
+            shape.append(count)
+            start.append(1)
     return _GridSpec(tuple(shape), tuple(start))
 
 
@@ -399,11 +413,6 @@ def build_fft_operator(
     omega: float | None = None,
 ) -> TorchLinearOperator:
     """Build FFT convolution for mutual induction on the centers' device."""
-    if centers.ndim != 2 or centers.shape[1] != 3:
-        raise ValueError("centers must have shape (N, 3)")
-    if len(orientations) != centers.shape[0]:
-        raise ValueError("orientations must have shape (N,)")
-    _validate_model(model, omega)
     device = centers.device
     n_rings = centers.shape[0]
     active_orientations = tuple(axis for axis in "xyz" if axis in orientations)
@@ -441,8 +450,6 @@ def build_fft_operator(
 
     def matvec(vector: Tensor) -> Tensor:
         vector = vector.to(device=device, dtype=torch.complex128).reshape(-1)
-        if vector.numel() != n_rings:
-            raise ValueError(f"expected a vector of length {n_rings}")
         source_grids = {}
         for axis in active_orientations:
             active, indices = active_indices[axis]

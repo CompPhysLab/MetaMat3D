@@ -1,7 +1,6 @@
-"""Torch implementation of the incident-field right-hand side."""
+"""Build the right-hand side of the linear system."""
 
 from typing import Literal
-
 import torch
 
 Tensor = torch.Tensor
@@ -24,11 +23,6 @@ def build_rhs(
     omega: float | Tensor | None = None,
 ) -> Tensor:
     """Build the complex excitation vector on the centers' device."""
-    if centers.ndim != 2 or centers.shape[1] != 3:
-        raise ValueError("centers must have shape (N, 3)")
-    if normals.shape != centers.shape:
-        raise ValueError("normals must have the same shape as centers")
-
     device = centers.device
     centers_float = centers.to(torch.float64)
     normal_values = normals.to(device=device, dtype=torch.float64)
@@ -41,10 +35,6 @@ def build_rhs(
     if model == "quasistatic":
         phase = torch.ones_like(flux, dtype=torch.complex128)
     else:
-        if k_direction is None or omega is None:
-            raise ValueError(
-                "k_direction and omega are required for non-quasistatic excitation"
-            )
         scale = torch.as_tensor(spacings, dtype=torch.float64, device=device) / 2.0
         wave_direction = torch.as_tensor(
             k_direction, dtype=torch.float64, device=device
