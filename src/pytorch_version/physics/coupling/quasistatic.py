@@ -17,7 +17,7 @@ def L_parallel(
     *,
     device: torch.device | str = "cpu",
 ) -> Tensor:
-    """Calculates mutual inductance between two parallel-oriented rings (PyTorch)."""
+    """Calculates mutual inductance between two parallel-oriented rings."""
     dev = torch.device(device)
     dx_t = torch.as_tensor(dx, dtype=torch.float64, device=dev)
     dy_t = torch.as_tensor(dy, dtype=torch.float64, device=dev)
@@ -49,7 +49,6 @@ def L_parallel(
     )
     integrand = A * r2 * (r2 + db * cos_alpha) / dp
 
-    # Интегрирование методом трапеций по оси alpha (последняя ось)
     L = integrand.sum(dim=-1) * (2 * torch.pi / n)
     return L
 
@@ -64,7 +63,7 @@ def L_orthogonal(
     *,
     device: torch.device | str = "cpu",
 ) -> Tensor:
-    """Calculates mutual inductance between two orthogonal-oriented rings (PyTorch)."""
+    """Calculates mutual inductance between two orthogonal-oriented rings."""
     dev = torch.device(device)
     dx_t = torch.as_tensor(dx, dtype=torch.float64, device=dev)
     dy_t = torch.as_tensor(dy, dtype=torch.float64, device=dev)

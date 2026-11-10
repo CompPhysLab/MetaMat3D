@@ -1,4 +1,4 @@
-"""Direct numerical integration (trapezoidal rule) for parallel and orthogonal rings (PyTorch version)."""
+"""Direct numerical integration (trapezoidal rule) for parallel and orthogonal rings."""
 
 import torch
 
@@ -16,7 +16,7 @@ def L_parallel(
     *,
     device: torch.device | str = "cpu",
 ) -> Tensor:
-    """Calculates mutual inductance between two parallel-oriented rings using the trapezoidal rule (PyTorch)."""
+    """Calculates mutual inductance between two parallel-oriented rings using the trapezoidal rule"""
     dev = torch.device(device)
     k = omega / c if not isinstance(omega, Tensor) else omega.to(device=dev, dtype=torch.float64) / c
     
@@ -53,7 +53,7 @@ def L_orthogonal(
     *,
     device: torch.device | str = "cpu",
 ) -> Tensor:
-    """Calculates mutual inductance between two orthogonal-oriented rings using the trapezoidal rule (PyTorch)."""
+    """Calculates mutual inductance between two orthogonal-oriented rings using the trapezoidal rule"""
     dev = torch.device(device)
     k = omega / c if not isinstance(omega, Tensor) else omega.to(device=dev, dtype=torch.float64) / c
     

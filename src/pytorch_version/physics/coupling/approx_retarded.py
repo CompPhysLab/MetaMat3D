@@ -1,5 +1,3 @@
-"""Electrical response / recurrent inductance for parallel and orthogonal rings (Pure PyTorch version)."""
-
 from functools import lru_cache
 
 import torch
@@ -10,7 +8,6 @@ C = 3e8
 
 class BarycentricInterpolator:
     """Evaluate a polynomial interpolant using the second barycentric formula."""
-
     def __init__(self, xi: Tensor, yi: Tensor, dim: int = -1):
         if xi.ndim != 1 or xi.numel() == 0:
             raise ValueError("xi must be a non-empty one-dimensional tensor")

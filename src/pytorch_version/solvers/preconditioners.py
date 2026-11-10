@@ -1,4 +1,4 @@
-"""Torch preconditioners for iterative linear solvers."""
+"""Заглушка, пока нет предобуславливателей, крооме диагонального"""
 
 import torch
 

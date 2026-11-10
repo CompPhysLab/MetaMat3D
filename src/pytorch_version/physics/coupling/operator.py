@@ -308,14 +308,12 @@ class _FFTKernel:
 
 
 class TorchLinearOperator:
-    """Matrix-free Torch operator interface for iterative solvers."""
-
     def __init__(self, size: int, device: torch.device):
         self.shape = (size, size)
         self.device = device
         self.dtype = torch.complex128
         self._matvec = None
-
+        
     def set_matvec(self, matvec) -> None:
         self._matvec = matvec
 

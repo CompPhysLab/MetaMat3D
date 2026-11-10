@@ -12,11 +12,6 @@ _AXIS_INDEX = {"x": 0, "y": 1, "z": 2}
 
 @dataclass(frozen=True)
 class Geometry:
-    """Ordered geometry consumed by the solvers.
-
-    centers stores doubled lattice coordinates in physical x/y/z order.
-    """
-
     centers: Tensor
     orientations: tuple[Orientation, ...]
 
@@ -54,7 +49,7 @@ def _coordinates_for_orientation(
 
 
 def _flatten_fortran_order(grid: Tensor) -> Tensor:
-    """Flatten a 3D i/j/k grid with the i axis varying fastest (Fortran order)."""
+    """Flatten a 3D i/j/k grid with the i axis varying fastest."""
     return grid.permute(2, 1, 0).reshape(-1)
 
 
