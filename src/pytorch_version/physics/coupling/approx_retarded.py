@@ -48,7 +48,13 @@ class BarycentricInterpolator:
         result = numerator / denominator
 
         exact_rows = exact_match.any(dim=1)
-        if exact_rows.any():
+        if self.xi.device.type == "cpu":
+            if exact_rows.any():
+                node_indices = exact_match.to(torch.int64).argmax(dim=1)
+                exact_values = yi_shifted[..., node_indices]
+                mask = exact_rows.reshape((1,) * (yi_shifted.ndim - 1) + (-1,))
+                result = torch.where(mask, exact_values, result)
+        else:
             node_indices = exact_match.to(torch.int64).argmax(dim=1)
             exact_values = yi_shifted[..., node_indices]
             mask = exact_rows.reshape((1,) * (yi_shifted.ndim - 1) + (-1,))

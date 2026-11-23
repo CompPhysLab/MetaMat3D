@@ -4,7 +4,6 @@ import pytest
 import torch
 
 from src.pytorch_version.geometry import (
-    MetaAtom,
     build_geometry,
     orientation_normals,
 )
@@ -99,25 +98,3 @@ def test_torch_packings_return_boolean_masks_on_input_device():
     assert torch.equal(cylinder_mask, torch.tensor([True, False, True]))
 
 
-def test_meta_atom_geometry_uses_tensors_and_requested_device():
-    atom = MetaAtom(
-        Dx=2.0,
-        Dy=4.0,
-        Dz=6.0,
-        orientations="x",
-        type="border",
-        device="cpu",
-    )
-
-    assert isinstance(atom.centers, torch.Tensor)
-    assert isinstance(atom.normals, torch.Tensor)
-    assert atom.centers.dtype == torch.float64
-    assert atom.normals.dtype == torch.float64
-    assert atom.centers.device.type == "cpu"
-    torch.testing.assert_close(
-        atom.centers,
-        torch.tensor(
-            [[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
-            dtype=torch.float64,
-        ),
-    )

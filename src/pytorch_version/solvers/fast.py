@@ -56,8 +56,6 @@ def _gmres(
 
             next_norm = torch.linalg.vector_norm(vector)
             hessenberg[column + 1, column] = next_norm
-            if next_norm.item() > torch.finfo(torch.float64).eps:
-                basis.append(vector / next_norm)
 
             used = column + 1
             target = torch.zeros(
@@ -72,22 +70,21 @@ def _gmres(
             iterations += 1
 
             residual_norm = torch.linalg.vector_norm(rhs - matrix @ candidate)
-            if residual_norm.item() <= tolerance:
+            next_norm_value, residual_norm_value = (
+                torch.stack((next_norm, residual_norm)).detach().cpu().tolist()
+            )
+            if residual_norm_value <= tolerance:
                 return candidate
-            if next_norm.item() <= torch.finfo(torch.float64).eps:
-                solution = candidate
-                break
+            if next_norm_value <= torch.finfo(torch.float64).eps:
+                raise RuntimeError(
+                    f"GMRES stagnated after {iterations} iterations; "
+                    f"residual={residual_norm_value:.3e}"
+                )
+            basis.append(vector / next_norm)
 
         else:
             solution = candidate
             continue
-
-        solution = candidate
-        if torch.linalg.vector_norm(rhs - matrix @ solution).item() > tolerance:
-            raise RuntimeError(
-                f"GMRES stagnated after {iterations} iterations; "
-                f"residual={torch.linalg.vector_norm(rhs - matrix @ solution).item():.3e}"
-            )
 
     residual_norm = torch.linalg.vector_norm(rhs - matrix @ solution).item()
     raise RuntimeError(

@@ -144,19 +144,26 @@ def test_torch_far_approx_retarded_matches_numpy_for_all_orientations(
     )
 
 
-def test_torch_barycentric_interpolator_matches_scipy_for_complex_values():
+@pytest.mark.parametrize(
+    "device", ["cpu"] + (["cuda"] if torch.cuda.is_available() else [])
+)
+def test_torch_barycentric_interpolator_matches_scipy_for_complex_values(device):
     nodes = torch.cos(
         torch.pi * torch.arange(201, dtype=torch.float64) / 200
-    )
+    ).to(device)
     values = torch.sin(3.0 * nodes) + 1j * torch.cos(5.0 * nodes)
-    query = torch.tensor([-1.0, -0.75, -0.1, 0.0, 0.4, 0.9, 1.0])
+    query = torch.tensor(
+        [-1.0, -0.75, -0.1, 0.0, 0.4, 0.9, 1.0], device=device
+    )
 
     actual = BarycentricInterpolator(nodes, values)(query)
     expected = SciPyBarycentricInterpolator(
-        nodes.numpy(), values.numpy()
-    )(query.numpy())
+        nodes.cpu().numpy(), values.cpu().numpy()
+    )(query.cpu().numpy())
 
-    np.testing.assert_allclose(actual.numpy(), expected, rtol=2e-12, atol=2e-12)
+    np.testing.assert_allclose(
+        actual.cpu().numpy(), expected, rtol=2e-12, atol=2e-12
+    )
     torch.testing.assert_close(
         BarycentricInterpolator(nodes, values)(nodes[100]),
         values[100],
