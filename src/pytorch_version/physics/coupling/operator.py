@@ -271,10 +271,15 @@ def mutual_inductance_matrix(
         selected = torch.nonzero(mask, as_tuple=False).flatten()
         if not selected.numel():
             continue
-        values = torch.cat(
+        unique_displacements, inverse = torch.unique(
+            displacements[selected],
+            dim=0,
+            return_inverse=True,
+        )
+        unique_values = torch.cat(
             [
                 _mutual_for_pairs(
-                    displacements[batch],
+                    batch,
                     orientation1,
                     orientation2,
                     radius1=radius,
@@ -283,9 +288,10 @@ def mutual_inductance_matrix(
                     model=model,
                     omega=omega,
                 )
-                for batch in selected.split(_PAIR_BATCH_SIZE)
+                for batch in unique_displacements.split(_PAIR_BATCH_SIZE)
             ]
         )
+        values = unique_values[inverse]
         pair_rows, pair_cols = rows[selected], cols[selected]
         matrix[pair_rows, pair_cols] = values
         matrix[pair_cols, pair_rows] = values

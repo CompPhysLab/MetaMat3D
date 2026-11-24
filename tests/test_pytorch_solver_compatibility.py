@@ -72,3 +72,41 @@ def test_torch_solver_matches_numpy_backend(
             f"for {model} interaction"
         ),
     )
+
+
+def test_torch_straight_raises_when_solve_ex_reports_singular(monkeypatch):
+    config = _config(TorchConfig, "quasistatic", "straight")
+    geometry = build_torch_geometry(config, device="cpu")
+    solve_ex = torch.linalg.solve_ex
+    check_errors_values = []
+
+    def recording_solve_ex(*args, check_errors=True, **kwargs):
+        check_errors_values.append(check_errors)
+        return solve_ex(*args, check_errors=check_errors, **kwargs)
+
+    monkeypatch.setattr(
+        torch_straight, "mutual_inductance_matrix",
+        lambda centers, *args, **kwargs: torch.zeros(
+            (centers.shape[0], centers.shape[0]),
+            dtype=torch.complex128,
+            device=centers.device,
+        ),
+    )
+    monkeypatch.setattr(
+        torch_straight, "self_inductance",
+        lambda *args, device: torch.zeros(
+            (), dtype=torch.complex128, device=device
+        ),
+    )
+    monkeypatch.setattr(
+        torch_straight, "build_rhs",
+        lambda centers, *args, **kwargs: torch.ones(
+            centers.shape[0], dtype=torch.complex128, device=centers.device
+        ),
+    )
+    monkeypatch.setattr(torch.linalg, "solve_ex", recording_solve_ex)
+
+    with pytest.raises(RuntimeError, match="system matrix is singular"):
+        torch_straight.solve_system(config, geometry, device="cpu")
+
+    assert check_errors_values == [False, False]

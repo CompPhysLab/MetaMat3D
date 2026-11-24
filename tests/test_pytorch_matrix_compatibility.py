@@ -22,6 +22,7 @@ from src.pytorch_version.physics import (
     build_rhs as build_torch_rhs,
     mutual_inductance_matrix as build_torch_matrix,
 )
+from src.pytorch_version.physics.coupling import operator as torch_operator
 
 
 MODELS = ("quasistatic", "full_retarded", "approx_retarded")
@@ -88,6 +89,42 @@ def test_torch_mutual_inductance_matrix_matches_numpy_backend(model):
         rtol=2e-10,
         atol=1e-19,
     )
+
+
+def test_torch_matrix_computes_only_unique_pair_displacements(monkeypatch):
+    evaluated_batch_sizes = []
+
+    def fake_mutual_for_pairs(displacements, *args, **kwargs):
+        evaluated_batch_sizes.append(displacements.shape[0])
+        return displacements[:, 0].to(torch.complex128)
+
+    monkeypatch.setattr(
+        torch_operator, "_mutual_for_pairs", fake_mutual_for_pairs
+    )
+    centers = torch.tensor(
+        [[0, 0, 0], [1, 0, 0], [2, 0, 0], [3, 0, 0]],
+        dtype=torch.int64,
+    )
+
+    matrix = torch_operator.mutual_inductance_matrix(
+        centers,
+        (1.0, 1.0, 1.0),
+        ("z", "z", "z", "z"),
+        radius=0.1,
+        width=0.0,
+    )
+
+    assert evaluated_batch_sizes == [3]
+    expected = torch.tensor(
+        [
+            [0.0, 0.5, 1.0, 1.5],
+            [0.5, 0.0, 0.5, 1.0],
+            [1.0, 0.5, 0.0, 0.5],
+            [1.5, 1.0, 0.5, 0.0],
+        ],
+        dtype=torch.complex128,
+    )
+    torch.testing.assert_close(matrix, expected)
 
 
 @pytest.mark.parametrize("model", MODELS)

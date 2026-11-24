@@ -47,6 +47,9 @@ def solve_system(
             model=config.interaction_model,
         )
 
+    solve_info = torch.empty(
+        frequencies.numel(), dtype=torch.int32, device=target_device
+    )
     for index, omega in enumerate(tqdm(frequencies, desc="Solving frequencies")):
         if mutual is None:
             mutual = mutual_inductance_matrix(
@@ -80,8 +83,22 @@ def solve_system(
             )
             * diagonal
         ) - mutual
-        currents[:, index] = torch.linalg.solve(system, rhs)
+        currents[:, index], solve_info[index] = torch.linalg.solve_ex(
+            system, rhs, check_errors=False
+        )
         if config.interaction_model != "quasistatic":
             mutual = None
+
+    for index, info in enumerate(solve_info.detach().cpu().tolist()):
+        if info > 0:
+            raise RuntimeError(
+                f"Linear solve failed for omega={config.omegas[index]}: "
+                f"system matrix is singular (info={info})."
+            )
+        if info < 0:
+            raise RuntimeError(
+                f"Linear solve failed for omega={config.omegas[index]}: "
+                f"invalid argument {-info} (info={info})."
+            )
 
     return currents
